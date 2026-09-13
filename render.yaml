@@ -1,0 +1,36 @@
+# Render Blueprint（https://render.com/docs/blueprint-spec）
+# 用法：Render 控制台 → New → Blueprint → 选本仓库，即可按此文件创建服务。
+#
+# ⚠️ 定时同步**不在 Render 上**（这里不建 cron service），改由 GitHub Actions 触发：
+#    .github/workflows/sync.yml → 定时 POST https://<你的域名>/api/cron/sync
+
+services:
+  - type: web
+    name: arsenal-fan-site
+    runtime: node
+    # 想省钱可改成 free（代价：15 分钟无访问会休眠，首次访问冷启动约 1 分钟）
+    plan: starter
+    region: singapore
+    branch: main
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/standings
+    autoDeploy: true
+    envVars:
+      # 敏感值用 sync: false —— 部署后在 Render 面板里手填，Blueprint 不会覆盖
+      - key: DATABASE_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: FOOTBALL_DATA_API_KEY
+        sync: false
+      - key: API_FOOTBALL_KEY
+        sync: false
+      - key: NEWS_API_KEY
+        sync: false
+      - key: AI_SCRAPER_API_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: SEASON_START_YEAR
+        value: "2026"

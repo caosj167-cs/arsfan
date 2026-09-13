@@ -1,0 +1,374 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FixtureStatus {
+  SCHEDULED
+  TIMED
+  IN_PLAY
+  PAUSED
+  FINISHED
+  SUSPENDED
+  POSTPONED
+  CANCELLED
+  AWARDED
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model Team {
+  id             String          @id @default(cuid())
+  provider       String
+  providerTeamId String
+  name           String
+  shortName      String?
+  tla            String?
+  crest          String?
+  address        String?
+  website        String?
+  founded        Int?
+  clubColors     String?
+  venue          String?
+  lastSyncedAt   DateTime?
+  homeFixtures   Fixture[]       @relation("HomeTeam")
+  awayFixtures   Fixture[]       @relation("AwayTeam")
+  standings      StandingEntry[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([provider, providerTeamId])
+  @@index([name])
+}
+
+model Competition {
+  id                    String    @id @default(cuid())
+  provider              String
+  providerCompetitionId String
+  name                  String
+  code                  String?
+  type                  String?
+  emblem                String?
+  plan                  String?
+  seasons               Season[]
+  fixtures              Fixture[]
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([provider, providerCompetitionId])
+  @@index([code])
+}
+
+model Season {
+  id               String          @id @default(cuid())
+  competitionId    String
+  providerSeasonId Int
+  startDate        DateTime
+  endDate          DateTime
+  current          Boolean         @default(false)
+  currentMatchday  Int?
+  competition      Competition     @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  fixtures         Fixture[]
+  standings        StandingEntry[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([competitionId, providerSeasonId])
+  @@index([competitionId, current])
+}
+
+model Fixture {
+  id                 String        @id @default(cuid())
+  provider           String
+  providerMatchId    String
+  competitionId      String
+  seasonId           String?
+  utcDate            DateTime
+  status             FixtureStatus
+  matchday           Int?
+  stage              String?
+  group              String?
+  winner             String?
+  duration           String?
+  homeTeamId         String
+  awayTeamId         String
+  homeScore          Int?
+  awayScore          Int?
+  halfTimeHomeScore  Int?
+  halfTimeAwayScore  Int?
+  extraTimeHomeScore Int?
+  extraTimeAwayScore Int?
+  penaltiesHomeScore Int?
+  penaltiesAwayScore Int?
+  lastUpdated        DateTime?
+  competition        Competition   @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  season             Season?       @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  homeTeam           Team          @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
+  awayTeam           Team          @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([provider, providerMatchId])
+  @@index([utcDate])
+  @@index([competitionId, seasonId, utcDate])
+  @@index([homeTeamId, utcDate])
+  @@index([awayTeamId, utcDate])
+}
+
+model OfficialNews {
+  id               String   @id @default(cuid())
+  provider         String
+  providerRecordId String
+  title            String
+  publishedAt      DateTime
+  category         String
+  sourceUrl        String
+  imageUrl         String?
+  summary          String?
+  fetchedAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([provider, providerRecordId])
+  @@index([publishedAt])
+  @@index([category, publishedAt])
+}
+
+model OfficialFixture {
+  id               String   @id @default(cuid())
+  provider         String
+  providerRecordId String
+  kickoffAt        DateTime
+  opponentName     String
+  opponentCrest    String?
+  competition      String
+  homeAway         String
+  sourceUrl        String
+  homeScore        Int?
+  awayScore        Int?
+  scoreSource      String?
+  scoreSourceUrl   String?
+  scoreUpdatedAt   DateTime?
+  fetchedAt        DateTime
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([provider, providerRecordId])
+  @@index([kickoffAt])
+}
+
+model PlayerProfile {
+  id               String   @id @default(cuid())
+  provider         String
+  providerRecordId String
+  name             String
+  position         String?
+  nationality      String?
+  dateOfBirth      DateTime?
+  profileUrl       String
+  imageUrl         String?
+  fetchedAt        DateTime
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([provider, providerRecordId])
+  @@index([name])
+}
+
+model StandingEntry {
+  id             String   @id @default(cuid())
+  seasonId       String
+  teamId         String
+  position       Int
+  playedGames    Int
+  won            Int
+  drawn          Int
+  lost           Int
+  points         Int
+  goalsFor       Int
+  goalsAgainst   Int
+  goalDifference Int
+  form           String?
+  updatedAt      DateTime @updatedAt
+  season         Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  team           Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, teamId])
+  @@index([seasonId, position])
+}
+
+model SyncRun {
+  id            String     @id @default(cuid())
+  provider      String
+  scope         String
+  status        SyncStatus
+  startedAt     DateTime   @default(now())
+  finishedAt    DateTime?
+  fetchedCount  Int        @default(0)
+  upsertedCount Int        @default(0)
+  errorMessage  String?
+  metadata      Json?
+
+  @@index([provider, scope, startedAt])
+}
+
+model PlayerSeasonStat {
+  id               String   @id @default(cuid())
+  provider         String
+  providerPlayerId String
+  playerName       String
+  season           Int
+  league           String?
+  team             String?
+  position         String?
+  appearances      Int      @default(0)
+  goals            Int      @default(0)
+  assists          Int      @default(0)
+  yellowCards      Int      @default(0)
+  redCards         Int      @default(0)
+  rating           Float?
+  /// 衍生指标（射门/射正、关键传球、传球、过人、对抗、丢球权、被犯规、犯规、抢断、解围），逐场累加
+  metrics          Json?
+  lastSyncedAt     DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([provider, providerPlayerId, season])
+  @@index([playerName, season])
+  @@index([season])
+}
+
+model MatchEvent {
+  id               String   @id @default(cuid())
+  fixtureId        String
+  provider         String
+  providerFixtureId String
+  minute           Int
+  extraMinute      Int?
+  type             String
+  detail           String?
+  comments         String?
+  teamId           String?
+  teamName         String?
+  playerId         String?
+  playerName       String?
+  assistId         String?
+  assistName       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([fixtureId])
+  @@index([providerFixtureId])
+}
+
+model MatchTeamStat {
+  id               String   @id @default(cuid())
+  fixtureId        String
+  provider         String
+  providerFixtureId String
+  teamId           String?
+  teamName         String?
+  type             String
+  value            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([fixtureId])
+}
+
+model PlayerMatchStat {
+  id               String   @id @default(cuid())
+  fixtureId        String
+  provider         String
+  providerFixtureId String
+  teamId           String?
+  teamName         String?
+  playerId         String?
+  playerName       String?
+  number           Int?
+  position         String?
+  minutes          Int?
+  rating           Float?
+  goals            Int      @default(0)
+  assists          Int      @default(0)
+  yellowCards      Int      @default(0)
+  redCards         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([fixtureId])
+  @@index([playerId])
+}
+
+/// 合并后的赛季赛程（26/27 等）：football-data 为主源，arsenal.com / Wikipedia 抓取补充，
+/// sources 记录参与确认的来源，verified = 至少两个来源一致。
+model FixtureEntry {
+  id                    String    @id @default(cuid())
+  season                Int
+  kickoffAt             DateTime
+  competition           String
+  competitionCode       String?
+  opponentName          String
+  opponentKey           String
+  opponentCrest         String?
+  homeAway              String
+  status                String    @default("SCHEDULED")
+  homeScore             Int?
+  awayScore             Int?
+  scoreSource           String?
+  scoreUpdatedAt        DateTime?
+  sources               String[]
+  verified              Boolean   @default(false)
+  primarySource         String
+  footballDataFixtureId String?
+  refreshAfter          DateTime?
+  lastRefreshedAt       DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([season, opponentKey, homeAway])
+  @@index([season, kickoffAt])
+  @@index([refreshAfter])
+}
+
+/// 单场比赛的「比赛中心」数据（统一 JSON）。来源 FotMob 比赛页内嵌 __NEXT_DATA__。
+/// 缺失字段一律留空，不编造。
+model MatchReport {
+  id             String   @id @default(cuid())
+  fotmobMatchId  String   @unique
+  fixtureEntryId String?
+  season         Int
+  kickoffAt      DateTime
+  competition    String
+  round          String?
+  homeTeamName   String
+  awayTeamName   String
+  homeScore      Int?
+  awayScore      Int?
+  finished       Boolean  @default(false)
+  payload        Json
+  source         String
+  fetchedAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([season, kickoffAt])
+  @@index([fixtureEntryId])
+}
