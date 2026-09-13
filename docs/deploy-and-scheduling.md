@@ -85,6 +85,15 @@ GitHub 仓库 → Settings → Secrets and variables → Actions → New reposit
 | `SYNC_BASE_URL` | Render 分配的域名，如 `https://arsenal-fan-site.onrender.com`（**不带结尾斜杠**） |
 | `CRON_SECRET` | 与 Render 环境变量 `CRON_SECRET` **完全一致** |
 
+> **⚠️ 推送工作流文件需要 `workflow` 权限**：用 `gh` 的 OAuth token（默认仅 `repo`/`gist`/`read:org`）
+> 推送 `.github/workflows/*` 会被拒：
+> `refusing to allow an OAuth App to create or update workflow ... without 'workflow' scope`。
+> 先补权限再推：
+> ```bash
+> gh auth refresh -h github.com -s workflow
+> ```
+> 或者改用带 `workflow` scope 的 PAT；也可以直接在 GitHub 网页上新建该文件。
+
 ### 4.3 验证
 
 - 仓库 → Actions → 「Arsenal 数据同步」→ Run workflow → 选 `both`，确认 200 且返回
