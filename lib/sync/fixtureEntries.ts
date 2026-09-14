@@ -50,6 +50,11 @@ function dayKey(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
 
+/** 比赛日（UTC 零点 Date），写入 FixtureEntry.matchDate */
+function utcDay(value: Date): Date {
+  return new Date(`${dayKey(value)}T00:00:00.000Z`);
+}
+
 /** 终场 / 进行中的状态：未开赛的场次不允许出现这些状态 */
 const SETTLED_STATUSES = new Set(["FINISHED", "AWARDED", "IN_PLAY", "PAUSED"]);
 
@@ -188,32 +193,27 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
 
   const all = [...fd, ...ars, ...wiki];
 
-  // 一次分组：对手归一化名 + 主客
-  const byOpponent = new Map<string, Candidate[]>();
+  // 一次分组：「主客 + 同一天」= 同一场。
+  //   - 按天分组可把本地化命名差异造成的重复合并掉
+  //     （如 Bayern München / Bayern Munich、Slavia Praha / Slavia Prague 同一天同一主客）
+  //   - 必须逐条候选用自己的日期当键：早期实现是先按「对手+主客」分桶、再用桶里第一条的日期
+  //     当整个桶的键，结果把「同一对手、同一主客、不同日期」的两个回合并成了一场
+  //     （8/16 与 11/28 都是主场对曼城 → 11/28 那行拿到了 8/16 的 3-0）。
+  const byMatch = new Map<string, Candidate[]>();
   for (const candidate of all) {
-    const key = `${opponentKey(candidate.opponentName)}|${candidate.homeAway}`;
-    const bucket = byOpponent.get(key);
+    const key = `${candidate.homeAway}|${dayKey(candidate.kickoffAt)}`;
+    const bucket = byMatch.get(key);
     if (bucket) bucket.push(candidate);
-    else byOpponent.set(key, [candidate]);
-  }
-
-  // 二次合并：同一「主客 + 同一天」= 同一场。解决本地化命名差异造成的重复
-  // （如 Bayern München / Bayern Munich、Slavia Praha / Slavia Prague）。
-  // ⚠️ 唯一键是 (season, opponentKey, homeAway)，不含日期，所以「同一对手的两次主场」
-  // 在库里只能存成一行；正因如此，下面取比分时必须再校验日期，否则会把另一场的比分带过来。
-  const byDay = new Map<string, Candidate[]>();
-  for (const candidates of byOpponent.values()) {
-    const key = `${candidates[0].homeAway}|${dayKey(candidates[0].kickoffAt)}`;
-    const bucket = byDay.get(key);
-    if (bucket) bucket.push(...candidates);
-    else byDay.set(key, [...candidates]);
+    else byMatch.set(key, [candidate]);
   }
 
   let verified = 0;
   const bySource: Record<string, number> = {};
   const rows: Prisma.FixtureEntryCreateManyInput[] = [];
+  /** 与 rows 一一对应的比赛唯一键（season 内唯一），用于保持 id 稳定的 upsert */
+  const rowKeys: string[] = [];
 
-  for (const candidates of byDay.values()) {
+  for (const candidates of byMatch.values()) {
     const ranked = [...candidates].sort((a, b) => SOURCE_RANK[a.source] - SOURCE_RANK[b.source]);
     const canonical = ranked[0];
     const sources = Array.from(new Set(ranked.map((c) => c.source)));
@@ -222,8 +222,7 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
     for (const source of sources) bySource[source] = (bySource[source] ?? 0) + 1;
 
     // 比分：只认「同一天 + 已开球」的来源。
-    // 为什么必须校验日期：分组键只含 (对手, 主客)，同一对手可能在联赛/杯赛各有一场主场
-    // （2026-11-28 主场对曼城的行曾被填成 8/16 那场的 3-0 —— 那是 Wikipedia 给出的另一场比分）。
+    // 分组已按天切分，这里再校验一次日期是防御性的（候选源可能报出跨天的开球时间）。
     const started = canonical.kickoffAt.getTime() <= Date.now();
     const canonicalDay = dayKey(canonical.kickoffAt);
     const scored = started
@@ -246,6 +245,7 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
     rows.push({
       season,
       kickoffAt: canonical.kickoffAt,
+      matchDate: utcDay(canonical.kickoffAt),
       competition: canonical.competition,
       competitionCode: canonical.competitionCode,
       opponentName: canonical.opponentName,
@@ -263,21 +263,27 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
       footballDataFixtureId: ranked.find((c) => c.fixtureId)?.fixtureId ?? null,
       refreshAfter: new Date(canonical.kickoffAt.getTime() + 3 * 60 * 60 * 1000),
     });
+    rowKeys.push(`${key}|${canonical.homeAway}|${canonicalDay}`);
   }
 
-  // 幂等写入：按唯一键 (season, opponentKey, homeAway) 逐行 upsert，**保持 id 稳定**。
+  // 幂等写入：按唯一键 (season, opponentKey, homeAway, matchDate) 逐行 upsert，**保持 id 稳定**。
   // 说明：早期用 deleteMany + createMany 整体重建，会让每次合并都生成全新 cuid，
   // 导致 MatchReport.fixtureEntryId 变成悬挂引用、已分享的 /matches/<id> 链接失效
   // （表现为「比赛中心点进去是空的」）。改为 upsert 后 id 不再变化。
-  // 最后只删除本季「已不在集合里」的残留行（例如命名差异被合并掉的重复项）。
+  // matchDate 为空的旧行回退用 kickoffAt 的日期计算键，迁移后第一轮同步即可对上、不会换 id。
   const existing = await prisma.fixtureEntry.findMany({
     where: { season },
-    select: { id: true, opponentKey: true, homeAway: true },
+    select: { id: true, opponentKey: true, homeAway: true, matchDate: true, kickoffAt: true },
   });
-  const idByKey = new Map(existing.map((e) => [`${e.opponentKey}|${e.homeAway}`, e.id]));
+  const idByKey = new Map(
+    existing.map((e) => [
+      `${e.opponentKey}|${e.homeAway}|${dayKey(e.matchDate ?? e.kickoffAt)}`,
+      e.id,
+    ]),
+  );
 
-  const ops = rows.map((row) => {
-    const id = idByKey.get(`${row.opponentKey}|${row.homeAway}`);
+  const ops = rows.map((row, index) => {
+    const id = idByKey.get(rowKeys[index]);
     return id
       ? prisma.fixtureEntry.update({ where: { id }, data: row, select: { id: true } })
       : prisma.fixtureEntry.create({ data: row, select: { id: true } });

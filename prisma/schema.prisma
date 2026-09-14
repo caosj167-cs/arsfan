@@ -327,6 +327,10 @@ model FixtureEntry {
   competitionCode       String?
   opponentName          String
   opponentKey           String
+  /// 比赛日（UTC 零点）。唯一键必须含它：同一对手、同一主客在一个赛季可能有两个回合
+  /// （如 2026-08-16 与 2026-11-28 都是主场对曼城），不含日期就只能存下一场，
+  /// 且会把其中一场的比分错挂到另一场上。
+  matchDate             DateTime?
   opponentCrest         String?
   homeAway              String
   status                String    @default("SCHEDULED")
@@ -343,7 +347,7 @@ model FixtureEntry {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  @@unique([season, opponentKey, homeAway])
+  @@unique([season, opponentKey, homeAway, matchDate])
   @@index([season, kickoffAt])
   @@index([refreshAfter])
 }

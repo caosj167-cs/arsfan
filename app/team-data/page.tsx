@@ -10,12 +10,18 @@ type TeamLike = { name: string; shortName: string | null; crest: string | null }
 
 /**
  * 对手队徽兜底：合并赛程多数已带 opponentCrest，缺失时用 football-data 球队表按名匹配补。
+ *
+ * ⚠️ 去后缀的正则里**不能**出现 `City FC` 这类多词分支：正则取最左匹配，
+ * "Manchester City FC" 会先匹配到 " City FC" 而被截成 "Manchester"，
+ * 于是映射里没有 "Manchester City" 这个键，对手队徽就退化成字母章。
  */
+const CLUB_SUFFIX = /\s+(FC|AFC|CF|SC|AC)$/i;
+
 function buildCrestMap(...groups: TeamLike[][]): Record<string, string> {
   const map: Record<string, string> = {};
   const add = (team: TeamLike) => {
     if (!team.crest) return;
-    const keys = [team.name, team.shortName ?? "", team.name.replace(/\s+(FC|AFC|CF|SC|AC|City FC)$/i, "").trim()];
+    const keys = [team.name, team.shortName ?? "", team.name.replace(CLUB_SUFFIX, "").trim()];
     for (const key of keys) {
       if (key) map[key] = team.crest as string;
     }
