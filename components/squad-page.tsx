@@ -13,6 +13,7 @@ import {
 } from "@/lib/data/squad";
 import type { PlayerSeasonStatView } from "@/lib/queries/players";
 import { SEASON_STAT_COLUMNS, statCell } from "@/lib/data/player-metrics";
+import { getPlayerPhoto } from "@/lib/data/player-photos";
 
 /** squad slug → 真实赛季统计（仅包含已命中的球员） */
 type RealStats = Record<string, PlayerSeasonStatView>;
@@ -99,8 +100,8 @@ function Pitch({ formation, realStats }: { formation: (FormationSlot & { player?
           <div className="squad-card-header">
             <div className="squad-card-header__photo">
               <Image
-                src="/players/default-avatar.svg"
-                alt=""
+                src={getPlayerPhoto(selected.id)}
+                alt={selected.name}
                 width={80}
                 height={80}
                 className="squad-card-header__img"
@@ -165,6 +166,7 @@ function SquadTable({ players, realStats }: { players: SquadPlayer[]; realStats:
               <tr key={p.id}>
                 <td>
                   <Link href={`/players/${p.id}`} className="squad-table__name">
+                    <span className="squad-table__num">{p.number}</span>
                     {p.name}
                   </Link>
                 </td>

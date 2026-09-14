@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import type { SquadPlayer } from "@/lib/data/squad";
 import { getOutfieldAttrs } from "@/lib/data/squad";
+import { PLAYER_FINANCE } from "@/lib/data/player-finance";
+import { getPlayerPhoto } from "@/lib/data/player-photos";
 import { seasonLabel } from "@/lib/data/season";
 import { SEASON_STAT_COLUMNS, statCell } from "@/lib/data/player-metrics";
 import type { PlayerSeasonStatView } from "@/lib/queries/players";
@@ -17,19 +19,20 @@ const ReactECharts = dynamic(() => import("echarts-for-react").then((mod) => mod
 
 type PlayerDetailProps = {
   player: SquadPlayer;
-  /** 真实赛季统计（FotMob 比赛数据聚合落库）。为 null 时页面显示“暂无数据”，不展示占位数 */
+  /** 真实赛季统计（比赛数据聚合落库）。为 null 时页面显示"暂无数据"，不展示占位数 */
   seasonStat?: PlayerSeasonStatView | null;
 };
 
-const TABS = ["概况", "属性", "数据", "位置和角色", "教练报告"] as const;
+const TABS = ["属性", "数据", "位置和角色"] as const;
 type TabKey = (typeof TABS)[number];
 
 // ---- 主组件 ----
 
 export function PlayerDetail({ player, seasonStat = null }: PlayerDetailProps) {
-  const [tab, setTab] = useState<TabKey>("概况");
+  const [tab, setTab] = useState<TabKey>("属性");
   const gk = player.position === "GK";
   const attrs = gk ? null : (getOutfieldAttrs(player) ?? null);
+  const finance = PLAYER_FINANCE[player.id];
 
   return (
     <div className="player-detail">
@@ -37,10 +40,10 @@ export function PlayerDetail({ player, seasonStat = null }: PlayerDetailProps) {
       <header className="player-header">
         <div className="player-header__photo">
           <Image
-            src="/players/default-avatar.svg"
-            alt=""
-            width={96}
-            height={96}
+            src={getPlayerPhoto(player.id)}
+            alt={player.name}
+            width={88}
+            height={88}
             className="player-header__img"
           />
         </div>
@@ -51,21 +54,37 @@ export function PlayerDetail({ player, seasonStat = null }: PlayerDetailProps) {
             {player.birthDate && (
               <span>{player.birthDate} ({calcAge(player.birthDate)}岁)</span>
             )}
+            {player.height && <span>{player.height}cm</span>}
+            {player.weight && <span>{player.weight}kg</span>}
             <span>{player.nationality}</span>
           </p>
-          <span className={`squad-status squad-status--${player.status ?? "fit"}`}>
-            {statusLabel(player.status)}
-          </span>
         </div>
         <div className="player-header__right">
-          <div className="player-header__value">
-            <span className="player-value-range">待补充</span>
-          </div>
-          <div className="player-header__contract">
-            <p>合同截止：待补充</p>
-            <p>周薪：待补充</p>
-            <p>重要球员</p>
-          </div>
+          {finance ? (
+            <>
+              <div className="player-header__value">
+                <span className="player-value-range">€{finance.marketValue}m</span>
+                <span className="player-value-label">身价</span>
+              </div>
+              <div className="player-header__contract">
+                <p>合同到期：{finance.contractUntil}</p>
+                <p>周薪：£{finance.weeklyWage.toLocaleString("en-GB")}</p>
+                <p>年薪：£{finance.annualSalary}m</p>
+              </div>
+              {finance.note && <p className="player-finance-note">{finance.note}</p>}
+            </>
+          ) : (
+            <>
+              <div className="player-header__value">
+                <span className="player-value-range">待补充</span>
+              </div>
+              <div className="player-header__contract">
+                <p>合同截止：待补充</p>
+                <p>周薪：待补充</p>
+                <p>年薪：待补充</p>
+              </div>
+            </>
+          )}
         </div>
       </header>
 
@@ -84,68 +103,11 @@ export function PlayerDetail({ player, seasonStat = null }: PlayerDetailProps) {
 
       {/* Tab 内容 */}
       <div className="player-body">
-        {tab === "概况" && <OverviewTab player={player} seasonStat={seasonStat} />}
         {tab === "属性" && attrs && <AttributesTab player={player} attrs={attrs} />}
         {tab === "属性" && !attrs && <GkAttributesTab player={player} />}
         {tab === "数据" && <StatsTab seasonStat={seasonStat} />}
         {tab === "位置和角色" && <PositionTab player={player} />}
-        {tab === "教练报告" && <CoachReportTab player={player} seasonStat={seasonStat} />}
       </div>
-    </div>
-  );
-}
-
-// ---- 概况 Tab ----
-
-function OverviewTab({ player, seasonStat }: { player: SquadPlayer; seasonStat: PlayerSeasonStatView | null }) {
-  const gk = player.position === "GK";
-  const attrs = gk ? null : (getOutfieldAttrs(player) ?? null);
-
-  return (
-    <div className="overview-grid">
-      <section className="overview-section">
-        <h2>教练报告 ›</h2>
-        <div className="coach-stars">{"★".repeat(5)} {"☆".repeat(0)}</div>
-        <p className="coach-note">{seasonStat ? "当打之年的重要球员" : "潜力新星"}</p>
-      </section>
-
-      <section className="overview-section">
-        <h2>赛季统计 ›</h2>
-        {seasonStat ? (
-          <>
-            <p className="stats-source">数据来源：FotMob 比赛数据聚合 · {seasonLabel(seasonStat.season)} 赛季</p>
-            <div className="table-scroll">
-              <table className="mini-stats-table">
-                <thead>
-                  <tr>
-                    {SEASON_STAT_COLUMNS.map((column) => (
-                      <th key={column.key}>{column.label}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    {SEASON_STAT_COLUMNS.map((column) => (
-                      <td key={column.key} className={column.emphasis ? "stat-emph" : undefined}>
-                        {statCell(column, seasonStat)}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </>
-        ) : (
-          <p className="data-empty">赛季统计暂无数据（等待比赛数据抓取同步）。</p>
-        )}
-      </section>
-
-      {/* 雷达图预览 */}
-      {(attrs || gk) && (
-        <section className="overview-section overview-section--wide">
-          <RadarChart player={player} compact />
-        </section>
-      )}
     </div>
   );
 }
@@ -201,13 +163,13 @@ function GkAttributesTab({ player }: { player: SquadPlayer }) {
 
 function StatsTab({ seasonStat }: { seasonStat: PlayerSeasonStatView | null }) {
   if (!seasonStat) {
-    return <p className="data-empty">赛季统计暂无数据。待比赛数据（FotMob）抓取聚合后自动展示（当前联赛赛季数据源不可用）。</p>;
+    return <p className="data-empty">赛季统计暂无数据。</p>;
   }
   const s = seasonStat;
   return (
     <>
       <p className="stats-source">
-        数据来源：FotMob 比赛数据聚合 · {seasonLabel(s.season)} 赛季 · 更新于 {s.lastSyncedAt.slice(0, 10)}
+        更新于 {s.lastSyncedAt.slice(0, 10)}
       </p>
       <div className="table-scroll">
         <table className="stats-table">
@@ -290,32 +252,6 @@ function PositionTab({ player }: { player: SquadPlayer }) {
             </span>
           ))}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ---- 教练报告 Tab ----
-
-function CoachReportTab({ player, seasonStat }: { player: SquadPlayer; seasonStat: PlayerSeasonStatView | null }) {
-  return (
-    <div className="coach-report">
-      <div className="coach-report__card">
-        <h3>教练评估</h3>
-        <div className="coach-stars-lg">{"★".repeat(5)} <span>16 个优点 / 0 个缺点</span></div>
-        <p className="coach-report__text">
-          {seasonStat
-            ? `${player.name} 是当打之年的重要球员，${seasonLabel(seasonStat.season)} 赛季出场 ${seasonStat.appearances} 次${seasonStat.goals > 0 ? `，贡献 ${seasonStat.goals} 个进球` : ""}${seasonStat.assists > 0 ? `、${seasonStat.assists} 次助攻` : ""}。`
-            : `${player.name} 是一名有潜力的球员，正在逐步融入球队体系（赛季统计待同步）。`}
-        </p>
-      </div>
-      <div className="coach-report__card coach-report__card--placeholder">
-        <h3>训练表现</h3>
-        <p className="data-empty">训练数据待接入 FM / TA 系统。</p>
-      </div>
-      <div className="coach-report__card coach-report__card--placeholder">
-        <h3>伤病记录</h3>
-        <p className="data-empty">伤病历史待补充。</p>
       </div>
     </div>
   );
@@ -437,15 +373,6 @@ function calcAge(birthDate: string): number {
   let age = now.getFullYear() - birth.getFullYear();
   if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--;
   return age;
-}
-
-function statusLabel(s?: string) {
-  switch (s) {
-    case "injured": return "受伤";
-    case "suspended": return "停赛";
-    case "resting": return "休息";
-    default: return "健康";
-  }
 }
 
 function positionLabel(pos: string): string {

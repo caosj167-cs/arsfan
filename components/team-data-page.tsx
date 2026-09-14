@@ -14,9 +14,8 @@ import type { LeaderRow } from "@/lib/queries/players";
 export type { LeaderRow };
 
 type Props = {
-  /** 合并后的 26/27 赛程（football-data 主源 + arsenal.com / Wikipedia 交叉验证） */
+  /** 合并后的 26/27 赛程 */
   entries: FixtureEntryView[];
-  entriesLastUpdatedAt?: string | null;
   /** 已有「比赛中心」数据的赛程 id（这些行可点击跳转） */
   entryReportIds: string[];
   standings: StandingView[];
@@ -102,10 +101,6 @@ function fmtStamp(v: string | null | undefined) {
   return v ? new Intl.DateTimeFormat("zh-CN", { dateStyle: "short", timeStyle: "short" }).format(new Date(v)) : "页面查询时";
 }
 
-function SourceLine({ children }: { children: React.ReactNode }) {
-  return <div className="data-source-line">{children}</div>;
-}
-
 /** 分组渲染：月份标题 + 一条 1px 延伸线（设计稿 46px 高） */
 function FixtureTable<T extends { id: string; kickoffAt: string }>({ rows, render }: { rows: T[]; render: (row: T) => React.ReactNode }) {
   const groups = useMemo(() => {
@@ -141,8 +136,9 @@ function FixtureTable<T extends { id: string; kickoffAt: string }>({ rows, rende
 
 /* ---------------- Fixtures tab ---------------- */
 
-function FixturesTab({ entries, entriesLastUpdatedAt, entryReportIds, crestMap, nowIso }: Pick<Props, "entries" | "entriesLastUpdatedAt" | "entryReportIds" | "crestMap" | "nowIso">) {
+function FixturesTab({ entries, entryReportIds, crestMap, nowIso }: Pick<Props, "entries" | "entryReportIds" | "crestMap" | "nowIso">) {
   const reportIds = useMemo(() => new Set(entryReportIds), [entryReportIds]);
+  const now = useMemo(() => new Date(nowIso).getTime(), [nowIso]);
   const options = useMemo(() => {
     const set = new Set<string>();
     for (const e of entries) set.add(competitionKey(e.competition));
@@ -162,10 +158,9 @@ function FixturesTab({ entries, entriesLastUpdatedAt, entryReportIds, crestMap, 
   // 下一场 = 第一条开赛时间仍在未来、且尚无终场比分的比赛（设计稿把这一行整行高亮）
   // nowIso 由服务端注入，保证渲染纯函数化、且不受客户端时钟漂移影响
   const nextId = useMemo(() => {
-    const now = new Date(nowIso).getTime();
     const upcoming = entries.find((e) => e.homeScore === null && new Date(e.kickoffAt).getTime() > now);
     return (upcoming ?? entries.find((e) => e.homeScore === null))?.id ?? null;
-  }, [entries, nowIso]);
+  }, [entries, now]);
 
   return (
     <>
@@ -190,7 +185,7 @@ function FixturesTab({ entries, entriesLastUpdatedAt, entryReportIds, crestMap, 
           <span />
         )}
         <span className="fixtures-toolbar__note">
-          26/27 赛季 · 共 {total} 场，{entries.filter((e) => e.verified).length} 场经多源交叉验证
+          26/27 赛季 · 共 {total} 场
           {shown !== total ? ` · 已筛选 ${shown} / ${total} 场` : ""}
         </span>
       </div>
@@ -199,7 +194,9 @@ function FixturesTab({ entries, entriesLastUpdatedAt, entryReportIds, crestMap, 
         rows={dataRows}
         render={(e) => {
           const isNext = e.id === nextId;
-          const done = e.homeScore !== null && e.awayScore !== null;
+          // 未开赛一律不算「已完赛」：即便数据里带了比分（历史脏数据），
+          // 只要开球时间还没到就不展示比分与胜负
+          const done = e.homeScore !== null && e.awayScore !== null && new Date(e.kickoffAt).getTime() <= now;
           const result = !done
             ? null
             : e.homeAway === "HOME"
@@ -224,7 +221,6 @@ function FixturesTab({ entries, entriesLastUpdatedAt, entryReportIds, crestMap, 
               <span className={`fx-status fx-status--${tone}`}>
                 {label}
                 {clickable ? <i className="fx-mc-arrow" title="进入比赛中心">›</i> : null}
-                {e.verified ? <i className="fx-verified" title="多源交叉验证通过">✓</i> : null}
               </span>
             </>
           );
@@ -233,26 +229,19 @@ function FixturesTab({ entries, entriesLastUpdatedAt, entryReportIds, crestMap, 
               {cells}
             </Link>
           ) : (
-            <div
-              key={e.id}
-              className={rowClass}
-              title={`来源：${e.sources.join(" + ")}${e.verified ? "（多源一致）" : "（单一来源，未验证）"}`}
-            >
+            <div key={e.id} className={rowClass}>
               {cells}
             </div>
           );
         }}
       />
-      <SourceLine>
-        数据来源：football-data.org（主源）· arsenal.com / Wikipedia（抓取补充并交叉验证）· 更新于 {fmtStamp(entriesLastUpdatedAt)}
-      </SourceLine>
     </>
   );
 }
 
 /* ---------------- Standings tab ---------------- */
 
-function StandingsTab({ standings, lastUpdatedAt }: Pick<Props, "standings" | "lastUpdatedAt">) {
+function StandingsTab({ standings }: Pick<Props, "standings">) {
   return (
     <>
       <div className="standings-toolbar">
@@ -282,7 +271,6 @@ function StandingsTab({ standings, lastUpdatedAt }: Pick<Props, "standings" | "l
         <span><i className="zone-key zone-key--europe" />欧战资格区</span>
         <span><i className="zone-key zone-key--bottom" />降级区</span>
       </div>
-      <SourceLine>数据来源：Football-Data.org · 更新：{fmtStamp(lastUpdatedAt)}</SourceLine>
     </>
   );
 }
@@ -323,7 +311,7 @@ function LeaderTable({
             <Link key={row.id} href={`/players/${row.id}`} className={`leader-table__row ${index === 0 ? "leader-table__row--top" : ""}`}>
               <span className="leader-table__rank">{index + 1}</span>
               <span className="leader-table__player">
-                <ClubBadge name="Arsenal" size={26} tone="brand" />
+                <span className="leader-table__num">{row.number}</span>
                 <b>{row.name}</b>
               </span>
               <span>{POSITION_NAMES[row.position] ?? row.position}</span>
@@ -337,11 +325,9 @@ function LeaderTable({
       {!live ? (
         <div className="leader-placeholder">
           <b>{label}数据待补充</b>
-          <p>尚未同步到本季球员{label}数据，暂以“—”占位；当前联赛赛季数据源不可用，待比赛数据抓取（FotMob）聚合后自动填充，不做占位数值展示。</p>
+          <p>尚未同步到本季球员{label}数据，暂以 &mdash; 占位。</p>
         </div>
-      ) : (
-        <SourceLine>数据来源：FotMob 比赛数据聚合（每场抓取）· {seasonText}（真实统计；未命中球员显示“—”）</SourceLine>
-      )}
+      ) : null}
     </>
   );
 }
@@ -361,7 +347,7 @@ export function TeamDataPage(props: Props) {
   }, [props.entries]);
 
   return (
-    <SiteShell active="team-data" source="足球数据：Football-Data.org / 阿森纳官网 · 新闻：The Guardian">
+    <SiteShell active="team-data" source="">
       <section className="data-page">
         <div className="data-page-heading">
           <div>
@@ -389,8 +375,8 @@ export function TeamDataPage(props: Props) {
           </span>
         </nav>
 
-        {tab === "fixtures" ? <FixturesTab entries={props.entries} entriesLastUpdatedAt={props.entriesLastUpdatedAt} entryReportIds={props.entryReportIds} crestMap={props.crestMap} nowIso={props.nowIso} /> : null}
-        {tab === "standings" ? <StandingsTab standings={props.standings} lastUpdatedAt={props.lastUpdatedAt} /> : null}
+        {tab === "fixtures" ? <FixturesTab entries={props.entries} entryReportIds={props.entryReportIds} crestMap={props.crestMap} nowIso={props.nowIso} /> : null}
+        {tab === "standings" ? <StandingsTab standings={props.standings} /> : null}
         {tab === "goals" ? <LeaderTable rows={props.scorers} metric="goals" season={props.leaderboardSeason} /> : null}
         {tab === "assists" ? <LeaderTable rows={props.assisters} metric="assists" season={props.leaderboardSeason} /> : null}
       </section>

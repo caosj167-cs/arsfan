@@ -14,7 +14,7 @@ export default async function PlayerRoute({ params }: { params: Promise<{ id: st
 
   const seasonStat = await getPlayerSeasonStatBySlug(id);
   const source = seasonStat
-    ? `赛季统计：按场抓取（FotMob）· ${seasonLabel(seasonStat.season)}`
+    ? `赛季统计：${seasonLabel(seasonStat.season)}`
     : "球员属性：2026-27 评估表 · 赛季统计待同步";
 
   return (
@@ -23,10 +23,7 @@ export default async function PlayerRoute({ params }: { params: Promise<{ id: st
         <div className="data-page-heading data-page-heading--compact">
           <div>
             <p className="data-kicker">阵容 / 球员资料</p>
-            <h1>
-              {player.name}
-              <span>。</span>
-            </h1>
+            <h1>{player.name}</h1>
           </div>
           <Link href="/players" className="back-link">
             ← 返回阵容

@@ -79,8 +79,8 @@ function Header() {
         <Link className="brand" href="/">
           <span className="brand__crest">A</span>
           <span>
-            <b>阿森纳足球俱乐部</b>
-            <small>ARSENAL FOOTBALL CLUB</small>
+            <b>阿森纳</b>
+            <small>球迷数据中心</small>
           </span>
         </Link>
 

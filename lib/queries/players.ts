@@ -2,6 +2,7 @@ import {
   SQUAD_PLAYERS,
   getPlayerById,
   autoFillFormation,
+  getStartingFormation,
   isGoalkeeper,
   getOutfieldAttrs,
   type SquadPlayer,
@@ -12,12 +13,12 @@ import { playerMatchKey } from "@/lib/data/player-name";
 import { prisma } from "@/lib/prisma";
 
 export { type SquadPlayer, type FormationSlot, isGoalkeeper, getOutfieldAttrs };
-export { getPlayerById, autoFillFormation };
+export { getPlayerById, autoFillFormation, getStartingFormation };
 
 /** 获取全部球员（按位置分组） */
 export function getSquadData() {
   const players = SQUAD_PLAYERS;
-  const formation = autoFillFormation();
+  const formation = getStartingFormation();
 
   // 按大类分组
   const goalkeepers = players.filter((p) => p.position === "GK");
@@ -37,6 +38,8 @@ export function getPlayerDetail(id: string): SquadPlayer | null {
 export type LeaderRow = {
   id: string;
   name: string;
+  /** 球衣号码（榜单行前缀展示） */
+  number: number;
   position: string;
   appearances: number | null;
   goals: number | null;
@@ -50,6 +53,7 @@ function toLeaderRow(player: SquadPlayer): LeaderRow {
   return {
     id: player.id,
     name: player.name,
+    number: player.number,
     position: player.position,
     appearances: null,
     goals: null,

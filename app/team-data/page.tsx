@@ -35,7 +35,6 @@ export default async function TeamDataRoute() {
   return (
     <TeamDataPage
       entries={entriesResult.entries}
-      entriesLastUpdatedAt={entriesResult.lastUpdatedAt}
       entryReportIds={entryReportIds}
       standings={standingsResult.standings}
       lastUpdatedAt={standingsResult.lastUpdatedAt}

@@ -10,21 +10,18 @@ export default async function SquadRoute() {
   const hasReal = Object.keys(realStats).length > 0;
   const season = await resolveSeason();
   const source = hasReal
-    ? `球员属性：2026-27 评估表 · 赛季统计：按场抓取（FotMob）${seasonLabel(season)}`
+    ? `球员属性：2026-27 评估表 · 赛季统计：${seasonLabel(season)}`
     : "球员属性：2026-27 评估表 · 赛季统计待同步";
 
   return (
-    <SiteShell active="players" source={source}>
+    <SiteShell active="players" source={source} wide>
       <section className="squad-page">
         <div className="data-page-heading data-page-heading--compact">
           <div>
             <p className="data-kicker">阿森纳 / 一线队</p>
-            <h1>
-              阵容<span>。</span>
-            </h1>
+            <h1>阵容</h1>
             <p className="data-page-desc">
               2026-27 赛季一线队名单，点击球衣或列表查看球员资料与能力图。
-              {hasReal ? `（出场/进球/评分为 FotMob ${seasonLabel(season)} 抓取聚合，未命中显示“—”）` : ""}
             </p>
           </div>
           <div className="data-filter">

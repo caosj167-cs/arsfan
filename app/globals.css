@@ -128,6 +128,8 @@ a { color: inherit; text-decoration: none; }
     radial-gradient(ellipse 60% 40% at 10% 90%, rgba(59, 73, 110, 0.08), transparent 40%),
     var(--bg-deep);
 }
+/* 阵容页：16 列数据表需要更宽的内容容器（仅作用于本页 shell） */
+.data-shell--wide { --content-max: 1580px; }
 
 /* ================================================================
    HEADER / NAVIGATION
@@ -463,6 +465,8 @@ h3 { font-size: var(--fs-h3); font-weight: 600; }
   object-fit: contain;
   width: 100%;
 }
+/* 真实队徽：去掉字母方章的描边，避免在盾形/圆形队徽外多一个方框 */
+.club-badge--crest { border-color: transparent; }
 
 /* ================================================================
    TEAM BADGE (legacy — 保留给尚未切到 ClubBadge 的位置)
@@ -623,8 +627,6 @@ h3 { font-size: var(--fs-h3); font-weight: 600; }
 .fx-status--loss { color: var(--danger); }
 .fx-status--upcoming { color: var(--text-muted); }
 .fx-status--next { color: var(--accent-link); font-weight: 600; }
-/* 多源交叉验证标记 */
-.fx-verified { color: var(--success); font-style: normal; font-size: var(--fs-xs); margin-left: 4px; }
 /* 可进入比赛中心的行 */
 a.fx-row--link { cursor: pointer; }
 a.fx-row--link:hover { background: var(--line-soft); }
@@ -950,10 +952,10 @@ a.fx-row--link:hover { background: var(--line-soft); }
 .btn--sm { font-size: var(--fs-sm); height: 41px; padding: 0 20px; }
 .btn--ticket { font-size: var(--fs-body); height: 41px; padding: 0 20px; }
 
-/* ---- 主视觉横幅（紧凑版 ~320px） ---- */
+/* ---- 主视觉横幅（紧凑版 ~288px） ---- */
 .home-hero {
   background: var(--bg-panel);
-  height: 320px;
+  height: 288px;
   margin: 0 calc(var(--gutter) * -1);
   overflow: hidden;
   position: relative;
@@ -988,15 +990,17 @@ a.fx-row--link:hover { background: var(--line-soft); }
   position: absolute;
   right: 0;
 }
+/* 文案与右侧数据卡改为垂直居中（原 align-items:flex-end 让文案压到横幅底部，
+   与顶栏之间留下 ~130px 空白）。底 padding 保留 32px，使整体视觉重心略偏上。 */
 .home-hero__inner {
-  align-items: flex-end;
+  align-items: center;
   display: flex;
   gap: 32px;
   height: 100%;
   justify-content: space-between;
   margin: 0 auto;
   max-width: calc(var(--content-max) + var(--gutter) * 2);
-  padding: 0 var(--gutter) 40px;
+  padding: 0 var(--gutter) 32px;
   position: relative;
 }
 .home-hero__copy { margin-bottom: 0; max-width: 560px; }
@@ -1294,9 +1298,17 @@ a.fx-row--link:hover { background: var(--line-soft); }
 .squad-page { padding-top: 0; }
 .squad-layout {
   display: grid;
-  gap: 20px;
-  grid-template-columns: minmax(400px, 1.2fr) minmax(320px, 0.85fr);
+  gap: 14px;
+  /* 左栏上限对齐球场宽度（520px），球场右侧不再留空 → 数据表紧贴球场 */
+  grid-template-columns: minmax(300px, 520px) minmax(0, 1fr);
   align-items: start;
+}
+/* 中屏：球场列让出宽度给数据表，尽量多显示统计列 */
+@media (max-width: 1700px) {
+  .squad-layout { grid-template-columns: minmax(280px, 440px) minmax(0, 1fr); }
+}
+@media (max-width: 1200px) {
+  .squad-layout { grid-template-columns: minmax(240px, 400px) minmax(0, 1fr); }
 }
 
 /* Football Pitch */
@@ -1410,7 +1422,7 @@ a.fx-row--link:hover { background: var(--line-soft); }
   display: flex;
   gap: 12px;
   align-items: center;
-  background: linear-gradient(135deg, #3DD68C 0%, #1a6b28 100%);
+  background: linear-gradient(135deg, #8B1A1A 0%, #4A0E0E 100%);
   border-radius: 0;
   padding: 12px 14px;
   margin-bottom: 12px;
@@ -1451,6 +1463,14 @@ a.fx-row--link:hover { background: var(--line-soft); }
   align-items: center;
 }
 .squad-card-header__right, .player-header__right { text-align: right; flex-shrink: 0; }
+
+/* 球员资料页头部财务信息（身价 / 周薪 / 年薪 / 合同到期） */
+.player-header__value { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.player-value-range { font-family: var(--font-mono); font-size: var(--fs-h3, 22px); font-weight: 700; color: #fff; line-height: 1.1; }
+.player-value-label { font-size: var(--fs-xs); color: rgba(255, 255, 255, 0.75); }
+.player-header__contract { margin-top: 8px; font-size: var(--fs-xs); color: rgba(255, 255, 255, 0.85); line-height: 1.7; text-align: right; }
+.player-header__contract p { margin: 0; }
+.player-finance-note { margin-top: 6px; font-size: 10px; color: rgba(255, 255, 255, 0.6); text-align: right; line-height: 1.4; }
 
 .squad-overall {
   font-family: var(--font-mono);
@@ -1562,6 +1582,22 @@ a.fx-row--link:hover { background: var(--line-soft); }
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+}
+.squad-table__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  background: rgba(255,255,255,.08);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  border-radius: 0;
+  flex-shrink: 0;
 }
 .squad-table__name:hover { color: var(--arsenal-red); }
 .squad-table__name::before {
@@ -1590,7 +1626,12 @@ a.fx-row--link:hover { background: var(--line-soft); }
 
 .player-header { margin-bottom: 0; border-radius: 0; padding: 20px 24px; }
 .player-header__info h1 { font-size: var(--fs-h2); }
-.player-header__photo { flex: 0 0 80px; width: 80px; height: 80px; }
+.player-header__photo {
+  flex: 0 0 88px; width: 88px; height: 88px;
+  border-radius: 14px;
+  border-color: rgba(255,255,255,.28);
+  box-shadow: 0 4px 14px rgba(0,0,0,.28);
+}
 
 /* Tabs */
 .player-tabs {
@@ -1836,6 +1877,25 @@ a.fx-row--link:hover { background: var(--line-soft); }
   display: flex;
   gap: 10px;
   min-width: 0;
+}
+/* 球员前缀：球衣号码章（原来是阿森纳队标，队内榜单用号码更直白） */
+.leader-table__num {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  height: 26px;
+  justify-content: center;
+  min-width: 26px;
+  padding: 0 6px;
+}
+.leader-table__row--top .leader-table__num {
+  background: rgba(239, 1, 7, 0.18);
+  color: var(--arsenal-red);
 }
 .leader-table__player b {
   font-weight: 500;

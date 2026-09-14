@@ -55,14 +55,17 @@ export function SiteFooter({ source }: { source?: string }) {
 export function SiteShell({
   active,
   source,
+  wide,
   children,
 }: {
   active?: SiteSection;
   source?: string;
+  /** 加宽内容容器（阵容页数据列较多时使用） */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="data-shell">
+    <div className={wide ? "data-shell data-shell--wide" : "data-shell"}>
       <SiteHeader active={active} />
       <main className="data-main">{children}</main>
       <SiteFooter source={source} />

@@ -40,6 +40,8 @@ export interface SquadPlayer {
   positions: string[];  // 可打位置列表
   nationality: string;  // 国籍
   birthDate?: string;   // 出生日期（可选，留空则不显示年龄）
+  height?: number;     // 身高（cm，可选）
+  weight?: number;     // 体重（kg，可选）
   status?: "fit" | "injured" | "suspended" | "resting"; // 状态
   attributes: PlayerAttributes;
   /** 赛季统计（占位——后续从 API/DB 填充） */
@@ -65,6 +67,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["GK"],
     nationality: "西班牙",
     status: "fit",
+    height: 183,
+    weight: 78,
     attributes: {
       saving: 17, coverage: 13, reflexes: 15,
       distribution: 17, spectacular: 14, feet: 16,
@@ -81,6 +85,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["CB"],
     nationality: "法国",
     status: "fit",
+    height: 192,
+    weight: 85,
     attributes: {
       defense: 18, physical: 17, pace: 14, vision: 13,
       attack: 9, technique: 15, aerial: 17, mental: 17, overall: 15,
@@ -96,6 +102,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["CB"],
     nationality: "巴西",
     status: "fit",
+    height: 182,
+    weight: 81,
     attributes: {
       defense: 17, physical: 17, pace: 12, vision: 11,
       attack: 12, technique: 13, aerial: 19, mental: 16, overall: 14.625,
@@ -111,6 +119,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["CB", "LB"],
     nationality: "厄瓜多尔",
     status: "fit",
+    height: 177,
+    weight: 70,
     attributes: {
       defense: 16, physical: 15, pace: 15, vision: 12,
       attack: 7, technique: 15, aerial: 14, mental: 14, overall: 13.5,
@@ -126,6 +136,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["RB", "CB"],
     nationality: "英格兰",
     status: "fit",
+    height: 183,
+    weight: 75,
     attributes: {
       defense: 15, physical: 14, pace: 13, vision: 13,
       attack: 7, technique: 15, aerial: 12, mental: 15, overall: 13,
@@ -141,6 +153,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["RB", "CB"],
     nationality: "荷兰",
     status: "fit",
+    height: 179,
+    weight: 77,
     attributes: {
       defense: 15, physical: 13, pace: 15, vision: 14,
       attack: 12, technique: 16, aerial: 12, mental: 15, overall: 14,
@@ -156,6 +170,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["LB", "CB"],
     nationality: "意大利",
     status: "fit",
+    height: 186,
+    weight: 80,
     attributes: {
       defense: 14, physical: 15, pace: 13, vision: 13,
       attack: 12, technique: 15, aerial: 13, mental: 13, overall: 13.5,
@@ -171,6 +187,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["LB", "CM"],
     nationality: "英格兰",
     status: "fit",
+    height: 178,
+    weight: 68,
     attributes: {
       defense: 13, physical: 14, pace: 15, vision: 13,
       attack: 9, technique: 16, aerial: 10, mental: 14, overall: 13,
@@ -186,6 +204,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["CB", "RB"],
     nationality: "英格兰",
     status: "fit",
+    height: 182,
+    weight: 74,
     attributes: {
       defense: 15, physical: 15, pace: 13, vision: 10,
       attack: 7, technique: 12, aerial: 15, mental: 14, overall: 12.625,
@@ -201,6 +221,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["CB"],
     nationality: "西班牙",
     status: "fit",
+    height: 191,
+    weight: 82,
     attributes: {
       defense: 14, physical: 14, pace: 13, vision: 9,
       attack: 7, technique: 12, aerial: 14, mental: 13, overall: 12,
@@ -216,6 +238,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["DM", "CM"],
     nationality: "英格兰",
     status: "fit",
+    height: 185,
+    weight: 80,
     attributes: {
       defense: 16, physical: 18, pace: 14, vision: 14,
       attack: 12, technique: 14, aerial: 16, mental: 18, overall: 15.25,
@@ -231,6 +255,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["CM", "DM"],
     nationality: "巴西",
     status: "fit",
+    height: 183,
+    weight: 74,
     attributes: {
       defense: 15, physical: 16, pace: 12, vision: 15,
       attack: 10, technique: 16, aerial: 13, mental: 17, overall: 14.25,
@@ -246,6 +272,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["AM", "CM"],
     nationality: "挪威",
     status: "resting",
+    height: 177,
+    weight: 69,
     attributes: {
       defense: 11, physical: 11, pace: 11, vision: 18,
       attack: 16, technique: 18, aerial: 9, mental: 18, overall: 14,
@@ -261,6 +289,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["AM", "LW"],
     nationality: "英格兰",
     status: "fit",
+    height: 178,
+    weight: 72,
     attributes: {
       defense: 10, physical: 13, pace: 15, vision: 14,
       attack: 14, technique: 17, aerial: 9, mental: 12, overall: 13,
@@ -276,6 +306,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["CM", "ST"],
     nationality: "西班牙",
     status: "fit",
+    height: 189,
+    weight: 82,
     attributes: {
       defense: 13, physical: 16, pace: 10, vision: 12,
       attack: 12, technique: 13, aerial: 18, mental: 14, overall: 13.5,
@@ -291,6 +323,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["DM"],
     nationality: "西班牙",
     status: "fit",
+    height: 181,
+    weight: 76,
     attributes: {
       defense: 15, physical: 13, pace: 11, vision: 16,
       attack: 10, technique: 17, aerial: 11, mental: 14, overall: 13.375,
@@ -306,6 +340,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["AM", "RW"],
     nationality: "英格兰",
     status: "fit",
+    height: 175,
+    weight: 65,
     attributes: {
       defense: 9, physical: 11, pace: 15, vision: 14,
       attack: 12, technique: 16, aerial: 9, mental: 12, overall: 12.25,
@@ -321,6 +357,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["RW"],
     nationality: "英格兰",
     status: "fit",
+    height: 178,
+    weight: 65,
     attributes: {
       defense: 11, physical: 13, pace: 17, vision: 16,
       attack: 17, technique: 18, aerial: 10, mental: 18, overall: 15,
@@ -336,6 +374,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["ST"],
     nationality: "瑞典",
     status: "fit",
+    height: 184,
+    weight: 82,
     attributes: {
       defense: 8, physical: 16, pace: 14, vision: 11,
       attack: 18, technique: 14, aerial: 16, mental: 15, overall: 14,
@@ -351,26 +391,13 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["ST", "CM"],
     nationality: "德国",
     status: "fit",
+    height: 193,
+    weight: 87,
     attributes: {
       defense: 12, physical: 16, pace: 12, vision: 13,
       attack: 16, technique: 15, aerial: 16, mental: 16, overall: 14.5,
     },
     seasonStats: { appearances: 295, goals: 119, assists: 0, yellowCards: 0, redCards: 0, rating: 7.23 },
-  },
-  {
-    id: "gabriel-jesus",
-    number: 9,
-    name: "加布里埃尔·赫苏斯",
-    nameEn: "Jesus",
-    position: "ST",
-    positions: ["ST", "W"],
-    nationality: "巴西",
-    status: "resting",
-    attributes: {
-      defense: 10, physical: 13, pace: 15, vision: 14,
-      attack: 12, technique: 17, aerial: 11, mental: 14, overall: 13.25,
-    },
-    seasonStats: { appearances: 225, goals: 157, assists: 0, yellowCards: 0, redCards: 0, rating: 7.21 },
   },
   {
     id: "noni-madueke",
@@ -381,6 +408,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["RW", "LW"],
     nationality: "英格兰",
     status: "fit",
+    height: 178,
+    weight: 68,
     attributes: {
       defense: 10, physical: 13, pace: 17, vision: 12,
       attack: 13, technique: 15, aerial: 9, mental: 12, overall: 12.625,
@@ -396,26 +425,13 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["LW", "RW"],
     nationality: "希腊",
     status: "fit",
+    height: 180,
+    weight: 73,
     attributes: {
       defense: 11, physical: 13, pace: 16, vision: 13,
       attack: 15, technique: 16, aerial: 9, mental: 14, overall: 13.375,
     },
     seasonStats: null,
-  },
-  {
-    id: "gabriel-martinelli",
-    number: 0,
-    name: "加布里埃尔·马丁内利",
-    nameEn: "Martinelli",
-    position: "LW",
-    positions: ["LW"],
-    nationality: "巴西",
-    status: "fit",
-    attributes: {
-      defense: 10, physical: 13, pace: 17, vision: 14,
-      attack: 15, technique: 16, aerial: 8, mental: 14, overall: 13,
-    },
-    seasonStats: { appearances: 341, goals: 117, assists: 0, yellowCards: 0, redCards: 0, rating: 7.33 },
   },
   {
     id: "kepa-arrizabalaga",
@@ -426,6 +442,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["GK"],
     nationality: "西班牙",
     status: "fit",
+    height: 186,
+    weight: 86,
     attributes: {
       saving: 14, coverage: 12, reflexes: 13,
       distribution: 14, spectacular: 11, feet: 14,
@@ -442,6 +460,8 @@ export const SQUAD_PLAYERS: SquadPlayer[] = [
     positions: ["GK"],
     nationality: "法国",
     status: "fit",
+    height: 193,
+    weight: 84,
     attributes: {
       saving: 14, coverage: 15, reflexes: 12,
       distribution: 12, spectacular: 11, feet: 12,
@@ -477,26 +497,56 @@ export interface FormationSlot {
 }
 
 export const FORMATION_433: FormationSlot[] = [
-  // ST
-  { label: "ST (C)", positionKey: "ST", x: 50, y: 10 },
-  // AM line
+  // 锋线三叉戟：中锋 + 左右边锋
+  { label: "ST (C)", positionKey: "ST", x: 50, y: 12 },
   { label: "AM (R)", positionKey: "RW", x: 78, y: 28 },
-  { label: "AM (C)", positionKey: "AM", x: 50, y: 30 },
   { label: "AM (L)", positionKey: "LW", x: 22, y: 28 },
-  // DM line
+  // 中场三人组
   { label: "DM (R)", positionKey: "DM", x: 72, y: 50 },
-  { label: "DM (C)", positionKey: "DM", x: 50, y: 52 },
+  { label: "DM (C)", positionKey: "DM", x: 50, y: 53 },
   { label: "DM (L)", positionKey: "DM", x: 28, y: 50 },
-  // Defense line
+  // 后防四人
   { label: "D (R)", positionKey: "RB", x: 83, y: 75 },
   { label: "D (CR)", positionKey: "CB", x: 62, y: 77 },
   { label: "D (CL)", positionKey: "CB", x: 38, y: 77 },
   { label: "D (L)", positionKey: "LB", x: 17, y: 75 },
-  // GK
+  // 门将
   { label: "GK", positionKey: "GK", x: 50, y: 92 },
 ];
 
-/** 自动将球员填入 4-3-3 阵型（按主位置最佳匹配） */
+/**
+ * 上一场首发 11 人（4-3-3）——静态硬编码，不随数据/表单变化。
+ * 如需调整首发，只改这里的 11 个 slug 即可（slug 见 SQUAD_PLAYERS[].id）。
+ */
+const STARTING_XI: Record<string, string> = {
+  // 门将
+  "GK": "david-raya",
+  // 后防四人
+  "D (R)": "jurrien-timber",
+  "D (CR)": "william-saliba",
+  "D (CL)": "gabriel-magalhaes",
+  "D (L)": "riccardo-calafiori",
+  // 中场三人组：赖斯 + 苏维门迪 + 厄德高
+  "DM (L)": "declan-rice",
+  "DM (C)": "martin-zubimendi",
+  "DM (R)": "martin-odegaard",
+  // 锋线三叉戟：埃泽 + 约克雷斯 + 萨卡
+  "AM (L)": "eberechi-eze",
+  "ST (C)": "viktor-gyokeres",
+  "AM (R)": "bukayo-saka",
+};
+
+/** 返回固定首发阵型（静态硬编码，不自动匹配） */
+export function getStartingFormation(): (FormationSlot & { player?: SquadPlayer })[] {
+  const playerMap = new Map(SQUAD_PLAYERS.map((p) => [p.id, p]));
+
+  return FORMATION_433.map((slot) => {
+    const id = STARTING_XI[slot.label];
+    return { ...slot, player: id ? playerMap.get(id) : undefined };
+  });
+}
+
+/** 自动将球员填入 4-3-3 阵型（按主位置最佳匹配）—— 静态首发启用后仅作兜底，保留兼容 */
 export function autoFillFormation(): (FormationSlot & { player?: SquadPlayer })[] {
   const remaining = [...SQUAD_PLAYERS];
   const filled = FORMATION_433.map((slot) => ({ ...slot, player: undefined as SquadPlayer | undefined }));
@@ -515,9 +565,9 @@ export function autoFillFormation(): (FormationSlot & { player?: SquadPlayer })[
     return undefined;
   };
 
-  // 按阵型顺序填充
+  // 按阵型顺序填充（11 人）
   pick("ST");
-  pick("RW"); pick("AM"); pick("LW");
+  pick("RW"); pick("LW");
   pick("DM"); pick("DM"); pick("DM");
   pick("RB"); pick("CB"); pick("CB"); pick("LB");
   pick("GK");

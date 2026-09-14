@@ -12,10 +12,14 @@ import { canOptimizeImage } from "@/lib/images";
  * 设计稿（docs/design-spec-from-sketch.md）用的是「俱乐部品牌色直角方章 +
  * 3 字母缩写 + 1px 白描边」—— 完全不用队徽图片。这里把两种形态都实现好，
  * 由 BADGE_VARIANT 一行切换整站表现：
- *   "code"  → 字母方章（设计稿原样，默认）
- *   "crest" → 真实队徽图片（无图时自动回退到字母方章）
+ *   "code"  → 字母方章（设计稿原样）
+ *   "crest" → 真实队徽图片（无图/加载失败时自动回退到字母方章）
+ *
+ * 现状：已切到 "crest"。只有首页与球队数据页会给 ClubBadge 传 crest
+ * （赛程对手、积分榜球队），其余位置（比赛中心等）没有队徽数据，
+ * 传 undefined 时依旧渲染字母方章，即「无队徽的保留现有样式」。
  */
-export const BADGE_VARIANT: "code" | "crest" = "code";
+export const BADGE_VARIANT: "code" | "crest" = "crest";
 
 /** 设计稿里的三种尺寸：战绩结果 26 / 赛程行 32 / 对阵阵章 46 */
 export const BADGE_SIZE = { sm: 26, md: 32, lg: 46 } as const;
@@ -48,7 +52,7 @@ export function ClubBadge({
 
   return (
     <span
-      className={`club-badge club-badge--${tone} ${className}`.trim()}
+      className={`club-badge club-badge--${tone} ${showCrest ? "club-badge--crest" : ""} ${className}`.trim()}
       style={
         showCrest
           ? { width: size, height: size }

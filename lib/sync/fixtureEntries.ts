@@ -45,6 +45,14 @@ function seasonWindow(season: number) {
   };
 }
 
+/** 比赛「当天」键（UTC 日期）：判断某来源的比分是否属于同一场比赛 */
+function dayKey(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+/** 终场 / 进行中的状态：未开赛的场次不允许出现这些状态 */
+const SETTLED_STATUSES = new Set(["FINISHED", "AWARDED", "IN_PLAY", "PAUSED"]);
+
 /** 对手归一化 key：去变音符、去 F.C./AFC/FC 等后缀与符号 */
 export function opponentKey(name: string): string {
   return name
@@ -191,9 +199,11 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
 
   // 二次合并：同一「主客 + 同一天」= 同一场。解决本地化命名差异造成的重复
   // （如 Bayern München / Bayern Munich、Slavia Praha / Slavia Prague）。
+  // ⚠️ 唯一键是 (season, opponentKey, homeAway)，不含日期，所以「同一对手的两次主场」
+  // 在库里只能存成一行；正因如此，下面取比分时必须再校验日期，否则会把另一场的比分带过来。
   const byDay = new Map<string, Candidate[]>();
   for (const candidates of byOpponent.values()) {
-    const key = `${candidates[0].homeAway}|${candidates[0].kickoffAt.toISOString().slice(0, 10)}`;
+    const key = `${candidates[0].homeAway}|${dayKey(candidates[0].kickoffAt)}`;
     const bucket = byDay.get(key);
     if (bucket) bucket.push(...candidates);
     else byDay.set(key, [...candidates]);
@@ -211,9 +221,25 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
     if (isVerified) verified += 1;
     for (const source of sources) bySource[source] = (bySource[source] ?? 0) + 1;
 
-    // 比分：取最高优先级且已填比分的来源
-    const scored = ranked.find((c) => c.homeScore !== null && c.awayScore !== null) ?? null;
-    const status = ranked.find((c) => c.source === "football-data.org")?.status ?? (scored ? "FINISHED" : "SCHEDULED");
+    // 比分：只认「同一天 + 已开球」的来源。
+    // 为什么必须校验日期：分组键只含 (对手, 主客)，同一对手可能在联赛/杯赛各有一场主场
+    // （2026-11-28 主场对曼城的行曾被填成 8/16 那场的 3-0 —— 那是 Wikipedia 给出的另一场比分）。
+    const started = canonical.kickoffAt.getTime() <= Date.now();
+    const canonicalDay = dayKey(canonical.kickoffAt);
+    const scored = started
+      ? ranked.find(
+          (c) => c.homeScore !== null && c.awayScore !== null && dayKey(c.kickoffAt) === canonicalDay
+        ) ?? null
+      : null;
+
+    const fdStatus = ranked.find((c) => c.source === "football-data.org")?.status;
+    // 未开赛的场次一律写非终场状态，即使抓取源给了比分或 FINISHED 也不采用
+    const status = started
+      ? fdStatus ?? (scored ? "FINISHED" : "SCHEDULED")
+      : fdStatus && !SETTLED_STATUSES.has(fdStatus)
+        ? fdStatus
+        : "SCHEDULED";
+
     const crest = ranked.find((c) => c.opponentCrest)?.opponentCrest ?? null;
     const key = opponentKey(canonical.opponentName);
 

@@ -75,7 +75,7 @@ export function MatchCenter({ view }: { view: MatchCenterView }) {
           {entry.homeScore !== null && entry.awayScore !== null ? ` · ${entry.homeScore}-${entry.awayScore}` : ""}
         </p>
         <p className="mc-empty__note">
-          该场详细数据（阵容 / 统计 / 评分 / 事件）尚未抓取。抓取源为 FotMob；缺失时留空，不做编造。
+          该场详细数据（阵容 / 统计 / 评分 / 事件）尚未抓取；缺失时留空，不做编造。
           可运行 <code>POST /api/sync/match-reports</code>（body: action=entry, entryId={entry.id}）触发抓取。
         </p>
         <Link href="/team-data" className="back-link">
@@ -181,7 +181,7 @@ export function MatchCenter({ view }: { view: MatchCenterView }) {
       </section>
 
       <section>
-        <h2>四、球员评分（FotMob 赛后评分，满分 10）</h2>
+        <h2>四、球员评分（赛后评分，满分 10）</h2>
         <div className="mc-lineups">
           <div className="mc-team">
             <h3 className="home">{clubName(home.name)}</h3>
@@ -213,8 +213,8 @@ export function MatchCenter({ view }: { view: MatchCenterView }) {
       </section>
 
       <div className="mc-src">
-        <b>数据来源：</b>FotMob 比赛页（抓取时间 {fmtDateTime(report.fetchedAt)}，matchId {report.fotmobMatchId}）。
-        {p.missing.length ? ` 缺失字段：${p.missing.join("、")}（留空，未编造）。` : " 全部字段均来自数据源，无编造。"}
+        <b>数据来源：</b>比赛页（抓取时间 {fmtDateTime(report.fetchedAt)}，matchId {report.fotmobMatchId}）。
+        {p.missing.length ? ` 缺失字段：${p.missing.join("、")}（留空，未编造）。` : ""}
       </div>
       <Link href="/team-data" className="back-link">
         ← 返回球队数据

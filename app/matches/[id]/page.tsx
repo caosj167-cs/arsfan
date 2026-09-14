@@ -12,7 +12,7 @@ export default async function MatchRoute({ params }: { params: Promise<{ id: str
   if (!view) notFound();
 
   const source = view.report
-    ? `比赛数据：FotMob（多源交叉核对）· 抓取于 ${view.report.fetchedAt.slice(0, 10)}`
+    ? `比赛数据：抓取于 ${view.report.fetchedAt.slice(0, 10)}`
     : "比赛数据：尚未抓取";
 
   return (
