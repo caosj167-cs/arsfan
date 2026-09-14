@@ -1,6 +1,9 @@
+import Image from "next/image";
+
 import { SiteShell } from "@/components/site-shell";
 import type { GuardianNewsResult, NewsArticle } from "@/lib/providers/guardian";
 import type { getOfficialNews } from "@/lib/queries/official";
+import { canOptimizeImage } from "@/lib/images";
 
 type OfficialNewsResult = Awaited<ReturnType<typeof getOfficialNews>>;
 
@@ -23,7 +26,19 @@ function stamp(value: string | null | undefined) {
 function NewsImage({ article, className = "" }: { article: DisplayNewsArticle; className?: string }) {
   return (
     <div className={`news-image ${className}`}>
-      {article.imageUrl ? <img src={article.imageUrl} alt="" loading="lazy" /> : <span>ARSENAL<br />NEWS</span>}
+      {article.imageUrl ? (
+        // fill：容器 .news-image 已是 position:relative + 固定 min-height，图片铺满裁剪。
+        // sizes 让浏览器按真实显示宽度取图（卡片列宽 ~380px，featured 整宽）。
+        <Image
+          src={article.imageUrl}
+          alt=""
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 380px"
+          unoptimized={!canOptimizeImage(article.imageUrl)}
+        />
+      ) : (
+        <span>ARSENAL<br />NEWS</span>
+      )}
     </div>
   );
 }

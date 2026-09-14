@@ -24,8 +24,9 @@
 
   --text-primary:       #FFFFFF;
   --text-secondary:     #B4B4C0;
-  --text-muted:         #7C7C8A;
-  --text-dim:           #5A5A66;
+  /* 对比度按 WCAG AA（≥4.5:1）校准（最亮浮层 #21212A 为最差情况） */
+  --text-muted:         #90909F;  /* 5.07 on #21212A */
+  --text-dim:           #868694;  /* 4.45~5.37；原 #5A5A66 仅 2.4~2.8，不合格 */
 
   --line-default:       #2A2A36;
   --line-soft:          rgba(255, 255, 255, 0.08);
@@ -958,13 +959,23 @@ a.fx-row--link:hover { background: var(--line-soft); }
   position: relative;
 }
 .home-hero__media {
-  /* 把 public/home-hero.jpg 换成你的主视觉图即可；缺图时只剩渐变，同样成立 */
-  background-color: #180A10;
+  /* 主视觉背景：纯 CSS 绘制（不引外链图片，避免 404）。
+     想换成真实照片：把图放到 public/home-hero.jpg，然后在 background-image 末尾追加
+     `, url("/home-hero.jpg")`，并给 background-position / background-size 各补一个值即可。 */
+  background-color: #12060B;
   background-image:
-    linear-gradient(90deg, rgba(14, 14, 18, 0.98) 0%, rgba(14, 14, 18, 0.85) 38%, rgba(14, 14, 18, 0.20) 78%, rgba(14, 14, 18, 0.50) 100%),
-    url("/home-hero.jpg");
-  background-position: center, center;
-  background-size: cover, cover;
+    /* 1) 左→右深色遮罩：保证左侧标题可读，右侧留出画面 */
+    linear-gradient(90deg, rgba(14, 14, 18, 0.98) 0%, rgba(14, 14, 18, 0.86) 38%, rgba(14, 14, 18, 0.24) 78%, rgba(14, 14, 18, 0.55) 100%),
+    /* 2) 右侧暖红辉光：制造「光源」与纵深感 */
+    radial-gradient(120% 160% at 86% 30%, rgba(228, 0, 43, 0.40) 0%, rgba(228, 0, 43, 0.12) 40%, rgba(228, 0, 43, 0) 70%),
+    /* 3) 左下金色微光：呼应荣誉色，避免底部发闷 */
+    radial-gradient(75% 90% at 10% 110%, rgba(216, 178, 96, 0.14) 0%, rgba(216, 178, 96, 0) 62%),
+    /* 4) 极淡斜纹肌理：增加材质感，不抢内容 */
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.03) 0 2px, rgba(255, 255, 255, 0) 2px 10px),
+    /* 5) 底色渐变 */
+    linear-gradient(135deg, #1B0A13 0%, #12060B 55%, #0E0E12 100%);
+  background-position: center;
+  background-size: cover;
   inset: 0;
   position: absolute;
 }
@@ -1079,7 +1090,7 @@ a.fx-row--link:hover { background: var(--line-soft); }
 .countdown { display: flex; gap: 4px; }
 .countdown__cell { align-items: center; display: flex; flex-direction: column; gap: 2px; height: auto; justify-content: center; min-width: 40px; }
 .countdown__cell b { font-size: var(--fs-h3); font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
-.countdown__cell span { color: var(--text-secondary); font-size: 10px; font-weight: 500; }
+.countdown__cell span { color: var(--text-secondary); font-size: var(--fs-sm); font-weight: 500; }
 
 /* ---- 区块通用（紧凑） ---- */
 .home-section { padding: 16px 0; }
@@ -1124,7 +1135,7 @@ a.fx-row--link:hover { background: var(--line-soft); }
   color: #fff;
   display: inline-flex;
   flex: 0 0 22px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   height: 22px;
   justify-content: center;
@@ -1155,7 +1166,7 @@ a.fx-row--link:hover { background: var(--line-soft); }
 }
 .home-table__head {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   height: 36px;
 }
@@ -1203,7 +1214,7 @@ a.fx-row--link:hover { background: var(--line-soft); }
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
 }
-.news-list-item__time { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.news-list-item__time { color: var(--text-muted); font-size: var(--fs-sm); white-space: nowrap; }
 .news-thumb {
   align-items: center;
   background: linear-gradient(135deg, #2E0B16 0%, var(--bg-elevated) 100%);
@@ -1250,38 +1261,31 @@ a.fx-row--link:hover { background: var(--line-soft); }
 }
 .entry-card:hover { border-color: var(--line-strong); }
 .entry-card--compact { flex-direction: row; }
-.entry-card__icon { display: block; height: 32px; margin-bottom: 0; width: 32px; flex-shrink: 0; }
+.entry-card__icon {
+  align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line-default);
+  display: flex;
+  flex-shrink: 0;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+.entry-card__icon svg { display: block; height: 20px; width: 20px; }
+.entry-card:hover .entry-card__icon { border-color: var(--line-strong); }
 .entry-card b { font-size: var(--fs-sm); font-weight: 700; white-space: nowrap; }
-.entry-card > span:last-child { color: var(--text-muted); font-size: 11px; line-height: 1.4; margin-top: 0; }
+.entry-card > span:last-child { color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.4; margin-top: 0; }
 
 /* ---- 极简底栏 ---- */
 .home-mini-footer {
   border-top: 1px solid var(--line-default);
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   padding: 14px 0;
   text-align: center;
 }
 
-@media (max-width: 1100px) {
-  .home-grid { grid-template-columns: 1fr; }
-  .result-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .home-hero { height: auto; }
-  .home-hero__inner { align-items: flex-start; flex-direction: column; gap: 20px; padding-bottom: 32px; padding-top: 32px; }
-  .home-next__card { flex-wrap: wrap; min-height: auto; }
-}
-
-@media (max-width: 700px) {
-  .home-grid { grid-template-columns: 1fr; }
-  .home-hero__title { font-size: var(--fs-h2); }
-  .home-table { overflow-x: auto; }
-  .home-table__head, .home-table__row { grid-template-columns: 40px minmax(120px, 1fr) 36px 56px 40px; min-width: 480px; }
-  .result-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .entry-grid { grid-template-columns: 1fr; }
-  .countdown { flex-wrap: wrap; }
-  .site-nav, .dashboard-nav { gap: 16px; }
-  .header-ops__lang, .header-ops__icon { display: none; }
-}
+/* 首页的响应式规则统一收在文件末尾「RESPONSIVE」一节，避免断点散落各处 */
 
 /* ================================================================
    SQUAD / FORMATION PAGE
@@ -1549,7 +1553,9 @@ a.fx-row--link:hover { background: var(--line-soft); }
 
 /* 宽统计表（14 项）在窄容器内横向滚动；强调列 */
 .table-scroll { overflow-x: auto; }
-.stat-emph { color: var(--arsenal-red); font-weight: 700; }
+/* 强调列（进球/评分）：用金色而非品牌红 —— 红字在深色上仅 3.3~4.0（不达 AA），
+   且红色在数据表里容易被误读为「异常」；金色 D8B260 对比度 8.87 */
+.stat-emph { color: var(--gold); font-weight: 700; }
 .squad-table__name {
   color: var(--text-primary);
   font-weight: 500;
@@ -1784,60 +1790,6 @@ a.fx-row--link:hover { background: var(--line-soft); }
 .detail-empty { color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.5; padding: 16px 0; }
 
 /* ================================================================
-   RESPONSIVE
-   ================================================================ */
-
-@media (max-width: 1050px) {
-  .dashboard-hero { grid-template-columns: 1fr; }
-  .standing-head, .standing-row { grid-template-columns: 48px minmax(200px, 1fr) repeat(6, 38px); padding-left: 16px; padding-right: 16px; }
-  .standing-row__team b { font-size: var(--fs-sm); }
-}
-
-@media (max-width: 900px) {
-  .data-main { padding: 20px 20px 50px; }
-  .standing-head, .standing-row { grid-template-columns: 44px minmax(180px, 1fr) repeat(6, 36px); padding-left: 10px; padding-right: 10px; }
-  .news-card--featured { display: block; padding: 14px; }
-  .news-card--featured .news-image { min-height: 200px; }
-  .news-card--featured .news-card__body { padding: 14px 2px 6px; }
-  .news-grid { display: block; padding: 16px 0 0; }
-  .news-grid .news-card { border-bottom: 1px solid var(--line-default); margin-bottom: 14px; padding-bottom: 14px; }
-  .news-grid .news-image { min-height: 100px; }
-  .news-grid .news-card h2 { font-size: var(--fs-body); }
-  .news-grid .news-card p { display: none; }
-}
-
-@media (max-width: 800px) {
-  .overview-grid, .attrs-layout, .position-layout, .coach-report { grid-template-columns: 1fr; }
-  .player-tabs { overflow-x: auto; }
-  .player-tab { white-space: nowrap; padding: 10px 14px; }
-  .squad-layout { grid-template-columns: 1fr; }
-  .squad-pitch__card { position: fixed; left: 50%; top: 50%; transform: translateX(-50%) translateY(-50%); margin-left: 0; z-index: 999; max-width: 90vw; }
-}
-
-@media (max-width: 700px) {
-  .site-header, .dashboard-header { flex-wrap: wrap; padding: 14px 18px; gap: 12px; }
-  .dashboard-brand { min-width: 0; }
-  .site-nav, .dashboard-nav { gap: 4px; margin-left: 0; order: 3; overflow-x: auto; width: 100%; }
-  .header-season, .dashboard-header__season { margin-left: auto; }
-  .data-main { padding: 16px 14px 40px; }
-  .data-page-heading, .news-page__heading { align-items: flex-start; flex-direction: column; gap: 12px; margin-left: 2px; margin-right: 2px; }
-  .data-filter { align-self: stretch; justify-content: space-between; }
-  .standings-page { overflow-x: auto; }
-  .standings-toolbar { margin-left: 0; min-width: 640px; }
-  .standings-table { min-width: 640px; }
-  .standing-head, .standing-row { grid-template-columns: 44px 240px repeat(6, 40px); }
-  .standing-note { min-width: 640px; }
-  .tab-nav { padding: 10px; }
-  .tab-btn { padding: 0 14px; }
-  .fx-card { overflow-x: auto; }
-  .fx-head, .fx-row { grid-template-columns: 80px 62px 36px minmax(150px, 1fr) 78px 54px; min-width: 640px; padding: 0 14px; column-gap: 10px; }
-  .fx-month { min-width: 640px; padding: 0 14px; }
-  .fx-opponent b { font-size: var(--fs-body); }
-  .fixtures-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; }
-  .fixtures-toolbar__note { white-space: normal; }
-}
-
-/* ================================================================
    TEAM DATA PAGE — 排行榜
    （页面标题区 / 数据标签栏 / 赛事筛选 chips / 赛程卡片 见上方各节）
    ================================================================ */
@@ -1921,17 +1873,6 @@ a.fx-row--link:hover { background: var(--line-soft); }
   margin: 0;
 }
 
-@media (max-width: 900px) {
-  .leader-table { overflow-x: auto; }
-  .leader-table__head, .leader-table__row { grid-template-columns: 44px 200px 80px 64px 64px 80px; min-width: 620px; }
-}
-
-@media (max-width: 700px) {
-  .data-page-desc { font-size: var(--fs-xs); }
-  .filter-chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
-  .filter-chip { flex: 0 0 auto; }
-}
-
 /* ================================================================
    MATCH CENTER（比赛中心：抓取数据，缺失留空不编造）
    ================================================================ */
@@ -1994,7 +1935,133 @@ a.fx-row--link:hover { background: var(--line-soft); }
 .mc-empty__note { color: var(--text-muted); font-size: var(--fs-md); line-height: 1.7; }
 .mc-empty code { background: var(--bg-panel); border: 1px solid var(--line-default); padding: 1px 6px; }
 
+/* ================================================================
+   可访问性：键盘焦点可见
+   修复前全站 :focus 规则为 0 条，键盘 / 触屏 / 语音操作时看不出焦点在哪
+   ================================================================ */
+:where(a, button, [role="button"], summary, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-link);
+  outline-offset: 2px;
+}
+/* 鼠标点击不显示轮廓，只有键盘导航时出现 */
+:focus:not(:focus-visible) { outline: none; }
+
+::selection { background: var(--arsenal-red); color: #fff; }
+
+/* ================================================================
+   RESPONSIVE —— 全站断点只在这里定义，收敛为 3 档
+   1200（窄桌面）/ 900（平板）/ 640（手机）
+   ----------------------------------------------------------------
+   放在文件最末：媒体查询不提升优先级，必须排在所有基础规则之后，
+   否则同选择器的基础规则会把这里覆盖掉（比赛中心的 mc-* 尤其如此）。
+   ================================================================ */
+
+/* ---- 1200px：窄桌面 ---- */
+@media (max-width: 1200px) {
+  /* 首页 */
+  .home-grid { grid-template-columns: 1fr; }
+  .home-hero { height: auto; }
+  .home-hero__inner { align-items: flex-start; flex-direction: column; gap: 20px; padding-bottom: 32px; padding-top: 32px; }
+  .home-next__card { flex-wrap: wrap; min-height: auto; }
+  .result-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* 数据中心 */
+  .dashboard-hero { grid-template-columns: 1fr; }
+  .standing-head, .standing-row { grid-template-columns: 48px minmax(200px, 1fr) repeat(6, 38px); padding-left: 16px; padding-right: 16px; }
+  .standing-row__team b { font-size: var(--fs-sm); }
+}
+
+/* ---- 900px：平板 ---- */
 @media (max-width: 900px) {
+  /* 数据中心 */
+  .data-main { padding: 20px 20px 50px; }
+  .standing-head, .standing-row { grid-template-columns: 44px minmax(180px, 1fr) repeat(6, 36px); padding-left: 10px; padding-right: 10px; }
+  /* 排行榜 */
+  .leader-table { overflow-x: auto; }
+  .leader-table__head, .leader-table__row { grid-template-columns: 44px 200px 80px 64px 64px 80px; min-width: 620px; }
+  /* 新闻 */
+  .news-card--featured { display: block; padding: 14px; }
+  .news-card--featured .news-image { min-height: 200px; }
+  .news-card--featured .news-card__body { padding: 14px 2px 6px; }
+  .news-grid { display: block; padding: 16px 0 0; }
+  .news-grid .news-card { border-bottom: 1px solid var(--line-default); margin-bottom: 14px; padding-bottom: 14px; }
+  .news-grid .news-image { min-height: 100px; }
+  .news-grid .news-card h2 { font-size: var(--fs-body); }
+  .news-grid .news-card p { display: none; }
+  /* 球员详情 / 阵容 */
+  .overview-grid, .attrs-layout, .position-layout, .coach-report { grid-template-columns: 1fr; }
+  .player-tabs { overflow-x: auto; }
+  .player-tab { white-space: nowrap; padding: 10px 14px; }
+  .squad-layout { grid-template-columns: 1fr; }
+  .squad-pitch__card { position: fixed; left: 50%; top: 50%; transform: translateX(-50%) translateY(-50%); margin-left: 0; z-index: 999; max-width: 90vw; }
+  /* 比赛中心 */
   .mc-lineups { grid-template-columns: 1fr; }
   .mc-table { display: block; overflow-x: auto; }
+}
+
+/* ---- 640px：手机 ---- */
+@media (max-width: 640px) {
+  /* 首页 */
+  .home-hero__title { font-size: var(--fs-h2); }
+  .home-table { overflow-x: auto; }
+  .home-table__head, .home-table__row { grid-template-columns: 40px minmax(120px, 1fr) 36px 56px 40px; min-width: 480px; }
+  .result-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .entry-grid { grid-template-columns: 1fr; }
+  .countdown { flex-wrap: wrap; }
+  /* 头部导航 */
+  .site-header, .dashboard-header { flex-wrap: wrap; padding: 14px 18px; gap: 12px; }
+  .dashboard-brand { min-width: 0; }
+  .site-nav, .dashboard-nav { gap: 4px; margin-left: 0; order: 3; overflow-x: auto; width: 100%; }
+  .header-season, .dashboard-header__season { margin-left: auto; }
+  .header-ops__lang, .header-ops__icon { display: none; }
+  /* 数据中心 */
+  .data-main { padding: 16px 14px 40px; }
+  .data-page-desc { font-size: var(--fs-xs); }
+  .data-page-heading, .news-page__heading { align-items: flex-start; flex-direction: column; gap: 12px; margin-left: 2px; margin-right: 2px; }
+  .data-filter { align-self: stretch; justify-content: space-between; }
+  .standings-page { overflow-x: auto; }
+  .standings-toolbar { margin-left: 0; min-width: 640px; }
+  .standings-table { min-width: 640px; }
+  .standing-head, .standing-row { grid-template-columns: 44px 240px repeat(6, 40px); }
+  .standing-note { min-width: 640px; }
+  .tab-nav { padding: 10px; }
+  .tab-btn { padding: 0 14px; }
+  .fx-card { overflow-x: auto; }
+  .fx-head, .fx-row { grid-template-columns: 80px 62px 36px minmax(150px, 1fr) 78px 54px; min-width: 640px; padding: 0 14px; column-gap: 10px; }
+  .fx-month { min-width: 640px; padding: 0 14px; }
+  .fx-opponent b { font-size: var(--fs-body); }
+  .fixtures-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .fixtures-toolbar__note { white-space: normal; }
+  .filter-chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .filter-chip { flex: 0 0 auto; }
+
+  /* ---- 阵容表在手机上改卡片式（不靠横向滚动）----
+     16 列摊成「姓名 + 位置」两行整宽 + 14 项数据的小网格；
+     列名由 td[data-label] 的 ::before 生成，桌面端仍是普通表格。 */
+  .squad-table-wrap { overflow: visible; }
+  .squad-table { border-collapse: separate; display: block; min-width: 0; }
+  .squad-table thead { display: none; }
+  .squad-table tbody { display: grid; gap: 10px; }
+  .squad-table tr {
+    background: var(--bg-panel);
+    border: 1px solid var(--line-default);
+    display: grid;
+    gap: 8px 10px;
+    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+    padding: 12px 14px;
+  }
+  .squad-table td { border: 0; padding: 0; text-align: left; }
+  .squad-table tr:hover td { background: transparent; }
+  /* 姓名 / 位置 各占整行 */
+  .squad-table td:first-child { grid-column: 1 / -1; }
+  .squad-table td:nth-child(2) { grid-column: 1 / -1; }
+  /* 数值单元格：标签在上、数值在下 */
+  .squad-table td[data-label]::before {
+    color: var(--text-muted);
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--fs-micro);
+    letter-spacing: 0.05em;
+    margin-bottom: 3px;
+  }
 }

@@ -351,11 +351,70 @@ function FocusNews({ items }: { items: HomeNewsItem[] }) {
 
 /* ---------------- 数据快捷入口（2×2 紧凑） ---------------- */
 
+/**
+ * 入口图标：统一 20×20 栅格、1.6 描边、currentColor 取色。
+ * 颜色不再写死 hex，改为引用已存在的色板 token（见 ENTRIES.accent）。
+ */
+const ICON_PROPS = {
+  viewBox: "0 0 20 20",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.6,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+/** 完整赛程：日历 + 行 */
+function IconSchedule() {
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="2.5" y="4.5" width="15" height="13" />
+      <path d="M2.5 8.5h15" />
+      <path d="M6.5 2.5v4M13.5 2.5v4" />
+      <path d="M5.5 12h5M5.5 14.8h8" />
+    </svg>
+  );
+}
+
+/** 积分榜：领奖台 */
+function IconStandings() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M2.5 17.5h15" />
+      <rect x="2.5" y="10.5" width="4.5" height="7" />
+      <rect x="7.75" y="6.5" width="4.5" height="11" />
+      <rect x="13" y="9" width="4.5" height="8.5" />
+    </svg>
+  );
+}
+
+/** 进球榜：靶心 */
+function IconGoals() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="10" cy="10" r="7.5" />
+      <circle cx="10" cy="10" r="3.5" />
+      <path d="M10 10h0" strokeWidth={2.4} />
+    </svg>
+  );
+}
+
+/** 助攻榜：传递（两节点连线） */
+function IconAssists() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="4.5" cy="15.5" r="2.6" />
+      <circle cx="15.5" cy="4.5" r="2.6" />
+      <path d="M6.4 13.6 13.6 6.4" />
+    </svg>
+  );
+}
+
 const ENTRIES = [
-  { title: "完整赛程", note: "英超 / 欧冠 / 杯赛", tint: "#2A0A14", href: "/team-data" },
-  { title: "积分榜", note: "排名与净胜球", tint: "#0F1E4A", href: "/team-data" },
-  { title: "进球榜", note: "射手排行", tint: "#0C2E20", href: "/team-data" },
-  { title: "助攻榜", note: "助攻数据", tint: "#33101A", href: "/team-data" },
+  { title: "完整赛程", note: "英超 / 欧冠 / 杯赛", href: "/team-data", accent: "var(--comp-ucl-fg)", icon: <IconSchedule /> },
+  { title: "积分榜", note: "排名与净胜球", href: "/team-data", accent: "var(--gold)", icon: <IconStandings /> },
+  { title: "进球榜", note: "射手排行", href: "/team-data", accent: "var(--accent-link)", icon: <IconGoals /> },
+  { title: "助攻榜", note: "助攻数据", href: "/team-data", accent: "var(--comp-pl-fg)", icon: <IconAssists /> },
 ];
 
 function QuickEntries() {
@@ -365,7 +424,9 @@ function QuickEntries() {
       <div className="entry-grid">
         {ENTRIES.map((e) => (
           <Link key={e.title} className="entry-card entry-card--compact" href={e.href}>
-            <span className="entry-card__icon" style={{ background: e.tint }} aria-hidden="true" />
+            <span className="entry-card__icon" style={{ color: e.accent }} aria-hidden="true">
+              {e.icon}
+            </span>
             <b>{e.title}</b>
             <span>{e.note}</span>
           </Link>

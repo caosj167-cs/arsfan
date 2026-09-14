@@ -170,7 +170,13 @@ function SquadTable({ players, realStats }: { players: SquadPlayer[]; realStats:
                 </td>
                 <td><span className="squad-pos">{positionLabel(p.position)}</span></td>
                 {SEASON_STAT_COLUMNS.map((column) => (
-                  <td key={column.key} className={column.emphasis ? "stat-emph" : undefined}>
+                  // data-label 只在手机卡片式布局里用（CSS ::before 生成列名）；
+                  // 桌面仍是普通表格，表头由 thead 承担
+                  <td
+                    key={column.key}
+                    data-label={column.label}
+                    className={column.emphasis ? "stat-emph" : undefined}
+                  >
                     {stat ? statCell(column, stat) : "—"}
                   </td>
                 ))}

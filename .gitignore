@@ -54,3 +54,7 @@ next-env.d.ts
 
 # 本地验证截图
 /shots/
+
+# 工具/编辑器本地状态（不进仓库）
+/.workbuddy/
+/.pw-browsers/

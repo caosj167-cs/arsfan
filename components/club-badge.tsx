@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 import { clubIdentity } from "@/lib/data/clubs";
+import { canOptimizeImage } from "@/lib/images";
 
 /**
  * 全站队标统一入口。
@@ -56,7 +58,15 @@ export function ClubBadge({
       aria-hidden="true"
     >
       {showCrest ? (
-        <img src={crest as string} alt="" loading="lazy" onError={() => setBroken(true)} />
+        <Image
+          src={crest as string}
+          alt=""
+          width={size}
+          height={size}
+          // 队徽只有 26~46px 且域名不可控：白名单外直出，避免服务端回源失败整页崩
+          unoptimized={!canOptimizeImage(crest)}
+          onError={() => setBroken(true)}
+        />
       ) : (
         code
       )}

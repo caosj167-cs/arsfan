@@ -133,8 +133,10 @@ export function MatchCenter({ view }: { view: MatchCenterView }) {
               </tr>
             </thead>
             <tbody>
-              {p.teamStats.map((s) => (
-                <tr key={s.key + s.metric}>
+              {p.teamStats.map((s, i) => (
+                // 用下标参与 key：FotMob 的指标会跨分组重复（如 Defensive actions、Top speed），
+                // 仅用 key+metric 会触发 React「duplicate key」告警
+                <tr key={`${i}-${s.key}`}>
                   <td className="mc-metric">{s.metric}</td>
                   <td className={s.highlight === "home" ? "mc-h mc-strong" : "mc-h"}>{s.home ?? "-"}</td>
                   <td className={s.highlight === "away" ? "mc-a mc-strong" : "mc-a"}>{s.away ?? "-"}</td>

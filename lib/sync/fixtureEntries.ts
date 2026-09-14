@@ -239,11 +239,29 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
     });
   }
 
-  // 幂等重建：先清空该赛季再批量写入，避免命名差异修正后残留旧行
-  await prisma.fixtureEntry.deleteMany({ where: { season } });
-  if (rows.length) {
-    await prisma.fixtureEntry.createMany({ data: rows });
-  }
+  // 幂等写入：按唯一键 (season, opponentKey, homeAway) 逐行 upsert，**保持 id 稳定**。
+  // 说明：早期用 deleteMany + createMany 整体重建，会让每次合并都生成全新 cuid，
+  // 导致 MatchReport.fixtureEntryId 变成悬挂引用、已分享的 /matches/<id> 链接失效
+  // （表现为「比赛中心点进去是空的」）。改为 upsert 后 id 不再变化。
+  // 最后只删除本季「已不在集合里」的残留行（例如命名差异被合并掉的重复项）。
+  const existing = await prisma.fixtureEntry.findMany({
+    where: { season },
+    select: { id: true, opponentKey: true, homeAway: true },
+  });
+  const idByKey = new Map(existing.map((e) => [`${e.opponentKey}|${e.homeAway}`, e.id]));
+
+  const ops = rows.map((row) => {
+    const id = idByKey.get(`${row.opponentKey}|${row.homeAway}`);
+    return id
+      ? prisma.fixtureEntry.update({ where: { id }, data: row, select: { id: true } })
+      : prisma.fixtureEntry.create({ data: row, select: { id: true } });
+  });
+
+  const saved = ops.length ? await prisma.$transaction(ops) : [];
+  const keepIds = saved.map((s) => s.id);
+  await prisma.fixtureEntry.deleteMany({
+    where: keepIds.length ? { season, id: { notIn: keepIds } } : { season },
+  });
 
   return {
     season,
