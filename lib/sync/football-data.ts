@@ -326,3 +326,149 @@ export async function syncFootballData(options: {
     throw error;
   }
 }
+
+/**
+ * 仅同步积分榜：从 football-data.org 拉取并 upsert 到 standingEntry。
+ *
+ * 与 syncFootballData 的区别：不碰赛程/比分，因此不会冲掉 P1 的三源合并赛程数据。
+ * 供定时任务（cron refresh）在每场比赛结束后刷新积分榜——这是积分榜自动更新的唯一入口。
+ */
+export async function syncStandingsFromProvider(options: {
+  competition?: string;
+  season?: number;
+} = {}) {
+  const competitionCode = options.competition ?? process.env.FOOTBALL_DATA_COMPETITION ?? DEFAULT_COMPETITION;
+  const scope = `standings:${competitionCode}:${options.season ?? "current"}`;
+  const run = await prisma.syncRun.create({
+    data: { provider: FOOTBALL_DATA_PROVIDER, scope, status: "RUNNING" },
+  });
+
+  try {
+    const [competitionPayload, standingsPayload] = await Promise.all([
+      fetchFootballDataCompetition(competitionCode),
+      fetchFootballDataStandings({ competition: competitionCode, season: options.season }),
+    ]);
+
+    const competition = await prisma.competition.upsert({
+      where: {
+        provider_providerCompetitionId: {
+          provider: FOOTBALL_DATA_PROVIDER,
+          providerCompetitionId: String(competitionPayload.id),
+        },
+      },
+      create: {
+        provider: FOOTBALL_DATA_PROVIDER,
+        providerCompetitionId: String(competitionPayload.id),
+        name: competitionPayload.name,
+        code: competitionPayload.code ?? null,
+        type: competitionPayload.type ?? null,
+        emblem: competitionPayload.emblem ?? null,
+        plan: competitionPayload.plan ?? null,
+      },
+      update: {
+        name: competitionPayload.name,
+        code: competitionPayload.code ?? null,
+        type: competitionPayload.type ?? null,
+        emblem: competitionPayload.emblem ?? null,
+        plan: competitionPayload.plan ?? null,
+      },
+    });
+
+    const seasonPayload = standingsPayload.season;
+    const season = await prisma.season.upsert({
+      where: {
+        competitionId_providerSeasonId: {
+          competitionId: competition.id,
+          providerSeasonId: seasonPayload.id,
+        },
+      },
+      create: {
+        competitionId: competition.id,
+        providerSeasonId: seasonPayload.id,
+        startDate: dateOnlyToDate(seasonPayload.startDate),
+        endDate: dateOnlyToDate(seasonPayload.endDate),
+        current: competitionPayload.currentSeason?.id === seasonPayload.id,
+        currentMatchday: seasonPayload.currentMatchday ?? null,
+      },
+      update: {
+        startDate: dateOnlyToDate(seasonPayload.startDate),
+        endDate: dateOnlyToDate(seasonPayload.endDate),
+        current: competitionPayload.currentSeason?.id === seasonPayload.id,
+        currentMatchday: seasonPayload.currentMatchday ?? null,
+      },
+    });
+
+    const teamIds = new Map<number, Awaited<ReturnType<typeof upsertTeam>>>();
+    for (const standing of standingsPayload.standings) {
+      for (const row of standing.table) {
+        if (!teamIds.has(row.team.id)) teamIds.set(row.team.id, await upsertTeam(row.team));
+      }
+    }
+
+    const standingRows = standingsPayload.standings.flatMap((standing) => standing.table);
+    let upserted = 0;
+    for (const row of standingRows) {
+      const team = teamIds.get(row.team.id);
+      if (!team) continue;
+      await prisma.standingEntry.upsert({
+        where: { seasonId_teamId: { seasonId: season.id, teamId: team.id } },
+        create: {
+          seasonId: season.id,
+          teamId: team.id,
+          position: row.position,
+          playedGames: row.playedGames,
+          won: row.won,
+          drawn: row.draw,
+          lost: row.lost,
+          points: row.points,
+          goalsFor: row.goalsFor,
+          goalsAgainst: row.goalsAgainst,
+          goalDifference: row.goalDifference,
+          form: row.form ?? null,
+        },
+        update: {
+          position: row.position,
+          playedGames: row.playedGames,
+          won: row.won,
+          drawn: row.draw,
+          lost: row.lost,
+          points: row.points,
+          goalsFor: row.goalsFor,
+          goalsAgainst: row.goalsAgainst,
+          goalDifference: row.goalDifference,
+          form: row.form ?? null,
+        },
+      });
+      upserted += 1;
+    }
+
+    await prisma.syncRun.update({
+      where: { id: run.id },
+      data: {
+        status: "SUCCEEDED",
+        finishedAt: new Date(),
+        fetchedCount: upserted,
+        upsertedCount: upserted,
+        metadata: { competition: competitionCode, seasonId: seasonPayload.id },
+      },
+    });
+
+    return {
+      syncRunId: run.id,
+      provider: FOOTBALL_DATA_PROVIDER,
+      competition: competitionCode,
+      seasonId: seasonPayload.id,
+      standings: upserted,
+    };
+  } catch (error) {
+    await prisma.syncRun.update({
+      where: { id: run.id },
+      data: {
+        status: "FAILED",
+        finishedAt: new Date(),
+        errorMessage: error instanceof Error ? error.message : "Unknown sync error",
+      },
+    });
+    throw error;
+  }
+}
