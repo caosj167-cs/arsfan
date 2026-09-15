@@ -4,8 +4,10 @@ import { Fragment, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { ClubBadge } from "@/components/club-badge";
+import { LeagueProgressChart } from "@/components/league-progress-chart";
 import { SiteShell } from "@/components/site-shell";
 import { clubName } from "@/lib/data/clubs";
+import { buildLeagueProgression } from "@/lib/data/points-progression";
 import type { StandingView } from "@/lib/queries/football";
 import type { FixtureEntryView } from "@/lib/queries/fixtureEntries";
 import { seasonLabel } from "@/lib/data/season";
@@ -241,13 +243,16 @@ function FixturesTab({ entries, entryReportIds, crestMap, nowIso }: Pick<Props, 
 
 /* ---------------- Standings tab ---------------- */
 
-function StandingsTab({ standings }: Pick<Props, "standings">) {
+function StandingsTab({ standings, entries }: Pick<Props, "standings" | "entries">) {
+  const progression = useMemo(() => buildLeagueProgression(entries), [entries]);
+  const progressSeason = entries.length ? seasonLabel(entries[0].season) : null;
   return (
     <>
       <div className="standings-toolbar">
         <p className="data-kicker">2026-27 赛季 <b>&rsaquo;</b></p>
         <div className="standings-select"><span>&#9679;</span> 英超积分榜 <b>&#8964;</b></div>
       </div>
+      <LeagueProgressChart points={progression} competitionLabel="英超" seasonLabel={progressSeason} />
       <div className="standings-table">
         <div className="standing-head">
           <span>排名</span><span>球队</span><span>已赛</span><span>胜</span><span>平</span><span>负</span><span>净胜</span><span>积分</span>
@@ -376,7 +381,7 @@ export function TeamDataPage(props: Props) {
         </nav>
 
         {tab === "fixtures" ? <FixturesTab entries={props.entries} entryReportIds={props.entryReportIds} crestMap={props.crestMap} nowIso={props.nowIso} /> : null}
-        {tab === "standings" ? <StandingsTab standings={props.standings} /> : null}
+        {tab === "standings" ? <StandingsTab standings={props.standings} entries={props.entries} /> : null}
         {tab === "goals" ? <LeaderTable rows={props.scorers} metric="goals" season={props.leaderboardSeason} /> : null}
         {tab === "assists" ? <LeaderTable rows={props.assisters} metric="assists" season={props.leaderboardSeason} /> : null}
       </section>
