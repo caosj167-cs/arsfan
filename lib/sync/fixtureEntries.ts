@@ -3,7 +3,7 @@ import { isOfficialCompetition, normalizeCompetition } from "@/lib/data/competit
 import { seasonStartYear } from "@/lib/data/season";
 import { fetchArsenalFixtures } from "@/lib/providers/arsenal";
 import { fetchWikipediaFixtures } from "@/lib/providers/wikipedia";
-import { extraCrestForOpponentKey } from "@/lib/data/crests";
+import { crestIndexByOpponentKey, resolveOpponentCrest } from "@/lib/data/crests";
 import { prisma } from "@/lib/prisma";
 import type { FixtureSourceLabel } from "@/lib/sync/fixture-status";
 import { deriveFixtureEntryStatus, planFixtureEntryDeletion } from "@/lib/sync/fixture-status";
@@ -166,7 +166,7 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
   // 记录哪些抓取源本趟失败：失败源独有的行不能被「差集删除」清掉（见下方 delete 守卫）。
   let arsenalFailed = false;
   let wikipediaFailed = false;
-  const [fd, ars, wiki] = await Promise.all([
+  const [fd, ars, wiki, teams] = await Promise.all([
     footballDataCandidates(season),
     arsenalCandidates(season).catch((error) => {
       arsenalFailed = true;
@@ -178,7 +178,10 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
       console.error("wikipedia candidates failed", error);
       return [] as Candidate[];
     }),
+    // 球队表（20 支英超队，football-data 提供）——按队名给「无来源队徽」的场次兜底
+    prisma.team.findMany({ select: { name: true, crest: true } }),
   ]);
+  const teamCrests = crestIndexByOpponentKey(teams);
 
   const all = [...fd, ...ars, ...wiki];
 
@@ -229,8 +232,12 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
     });
 
     const key = opponentKey(canonical.opponentName);
-    const crest =
-      ranked.find((c) => c.opponentCrest)?.opponentCrest ?? extraCrestForOpponentKey(key) ?? null;
+    // 队徽兜底：来源给的 → 球队表按名回查 → 静态固化表（欧冠/杯赛 8 队）→ null
+    const crest = resolveOpponentCrest({
+      fromSources: ranked.find((c) => c.opponentCrest)?.opponentCrest,
+      opponentKey: key,
+      teamCrests,
+    });
 
     rows.push({
       season,

@@ -7,6 +7,8 @@
 // 所有 URL 均已用 HEAD 校验返回 200，且 crests.football-data.org 已在
 // lib/images.ts 的 OPTIMIZABLE_IMAGE_HOSTS 白名单内（走 next/image 优化）。
 
+import { opponentKey } from "@/lib/sync/opponent-key";
+
 export const EXTRA_OPPONENT_CRESTS: Record<string, string> = {
   napoli: "https://crests.football-data.org/113.png",
   lille: "https://crests.football-data.org/521.png",
@@ -21,6 +23,42 @@ export const EXTRA_OPPONENT_CRESTS: Record<string, string> = {
 /** 按 opponentKey 取固化队徽；无则返回 null。 */
 export function extraCrestForOpponentKey(key: string): string | null {
   return EXTRA_OPPONENT_CRESTS[key] ?? null;
+}
+
+/**
+ * 用「球队表」（football-data 的 20 支英超队）按归一化队名建队徽索引。
+ *
+ * 用途：合并赛程时，若**没有任何来源**给出队徽，再按对手名回查这张表兜底。
+ * 典型场景——某场比赛只有 arsenal.com / wikipedia 有（football-data 的赛程里没有这场，
+ * 因此不带队徽），例如本季 9/15 客场对伊普斯维奇、8/16 社区盾对曼城：
+ * 它们在 `Team` 表里都有队徽，只走静态表会漏掉 → 队标回退成字母章。
+ *
+ * 键与 FixtureEntry.opponentKey 同口径（`opponentKey()` 纯函数）。
+ */
+export function crestIndexByOpponentKey(
+  teams: Array<{ name: string; crest: string | null }>,
+): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const team of teams) {
+    if (!team.crest) continue;
+    const key = opponentKey(team.name);
+    if (key && !index.has(key)) index.set(key, team.crest);
+  }
+  return index;
+}
+
+/** 队徽兜底链：来源给的最优先 → 球队表按名回查 → 静态固化表 → null */
+export function resolveOpponentCrest(options: {
+  fromSources: string | null | undefined;
+  opponentKey: string;
+  teamCrests?: Map<string, string>;
+}): string | null {
+  return (
+    options.fromSources ??
+    options.teamCrests?.get(options.opponentKey) ??
+    extraCrestForOpponentKey(options.opponentKey) ??
+    null
+  );
 }
 
 /**
