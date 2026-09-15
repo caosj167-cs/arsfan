@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { SiteNotifications } from "@/components/site-notifications";
+import { SiteSearch } from "@/components/site-search";
 import { ClubBadge } from "@/components/club-badge";
 import { Countdown } from "@/components/countdown";
 import { clubName } from "@/lib/data/clubs";
@@ -99,18 +101,8 @@ function Header() {
 
         <div className="header-ops">
           <span className="header-ops__lang">中文</span>
-          <button type="button" className="header-ops__icon" aria-label="搜索" title="搜索（待接入）">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path d="M15.5 15.5 21 21" />
-            </svg>
-          </button>
-          <button type="button" className="header-ops__icon" aria-label="通知" title="通知（待接入）">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M6 16V10a6 6 0 0 1 12 0v6l1.5 2H4.5z" />
-              <path d="M10 20.5a2 2 0 0 0 4 0" />
-            </svg>
-          </button>
+          <SiteSearch />
+          <SiteNotifications />
           <a className="btn btn--primary btn--ticket" href="https://www.arsenal.com/tickets" target="_blank" rel="noreferrer">
             购票入口
           </a>

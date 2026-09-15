@@ -487,6 +487,21 @@ export function getPlayerById(id: string): SquadPlayer | undefined {
   return SQUAD_PLAYERS.find((p) => p.id === id);
 }
 
+/**
+ * 顶栏搜索：按中文名 / 英文名 / slug 匹配球员（不区分大小写）。
+ * 命中的球员排在座次前后不影响，按名册顺序返回。
+ */
+export function searchSquadPlayers(query: string, limit = 8): SquadPlayer[] {
+  const lower = query.trim().toLowerCase();
+  if (!lower) return [];
+  return SQUAD_PLAYERS.filter(
+    (p) =>
+      p.name.toLowerCase().includes(lower) ||
+      p.nameEn.toLowerCase().includes(lower) ||
+      p.id.includes(lower),
+  ).slice(0, limit);
+}
+
 /** 阵型位置映射 —— 4-3-3 首发阵容 */
 export interface FormationSlot {
   label: string;        // 显示标签如 "ST (C)"

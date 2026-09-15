@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { SiteNotifications } from "@/components/site-notifications";
+import { SiteSearch } from "@/components/site-search";
+
 export type SiteSection = "home" | "team-data" | "players" | "news";
 
 const NAV: { id: SiteSection; label: string; href: string }[] = [
@@ -35,6 +38,10 @@ export function SiteHeader({ active }: { active?: SiteSection }) {
         <span className="header-season">
           2026 / 27 <i>&#8964;</i>
         </span>
+        <div className="header-ops">
+          <SiteSearch />
+          <SiteNotifications />
+        </div>
       </div>
     </header>
   );
