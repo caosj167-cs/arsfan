@@ -75,23 +75,17 @@ GET|POST /api/cron/sync?mode=both       → 两者都跑
 - **每天 21:00 UTC（北京 05:00）** → `mode=merge`（合并新公布的赛程）
 - 支持手动 `workflow_dispatch` 选 `refresh|merge|both`
 
-### 4.1 前置：代码必须先在 GitHub 上（当前尚未 init）
+### 4.1 前置：代码在 GitHub 上 ✅ 已完成
 
-当前项目**还不是 git 仓库**（`arsenal-fan-site` 与工作区根目录都不是）。
-`schedule` 只在**默认分支**生效，所以先做：
+仓库：`https://github.com/caosj167-cs/arsfan`（**public**），默认分支 `main`，
+`.github/workflows/sync.yml` **已跟踪并推送**（`schedule` 只在默认分支生效 ✓）。
 
-```bash
-cd arsenal-fan-site
-git init -b main
-git add .
-git commit -m "chore: initial commit"
-# 在 GitHub 上新建一个空仓库后：
-git remote add origin git@github.com:<你的账号>/arsenal-fan-site.git
-git push -u origin main
-```
+`.gitignore` 已忽略 `/node_modules`、`/.next/`、`.env*`、`/app/generated/prisma` ——
+**`.env` 不会被推上去**，密钥走 Render 环境变量 + GitHub Secrets。
 
-`.gitignore` 已正确忽略 `/node_modules`、`/.next/`、`.env*`、`/app/generated/prisma`——
-**`.env` 不会被推上去**，密钥请改用 Render 环境变量 + GitHub Secrets。
+> 历史坑（已解决，留档）：推送 workflow 文件需要 `workflow` scope，而 **device flow 拿不到它**，
+> 必须用浏览器 OAuth 流程 `gh auth login -h github.com -p https -w -s workflow -s repo -s gist -s read:org`。
+> 当前 token scopes 已含 `workflow` ✓。
 
 ### 4.2 配置两个 Secret
 
@@ -113,9 +107,24 @@ GitHub 仓库 → Settings → Secrets and variables → Actions → New reposit
 
 ### 4.3 验证
 
-- 仓库 → Actions → 「Arsenal 数据同步」→ Run workflow → 选 `both`，确认 200 且返回
-  `merge` / `refresh` / `matchReports` 都有数据。
-- 之后每整点自动跑；失败会在 Actions 页面标红。
+```bash
+# 也可以不点网页，直接命令行触发
+gh workflow run sync.yml -R caosj167-cs/arsfan -f mode=both
+gh run list -R caosj167-cs/arsfan --limit 3        # 看最近几条是否 success
+```
+
+确认返回 200 且 `data` 里 `merge` / `refresh` / `standings` / `matchReports` 都有数据
+（`standings` 现由 FotMob 抓取提供，见第 3 节）。
+
+> ⚠️ **`gh secret list` 目前为空** —— 不配这两个 Secret，workflow 一启动就
+> `::error::缺少仓库 Secret SYNC_BASE_URL` 退出（这是历史上"每小时自动 refresh 从未成功"的真正原因）。
+> 配置命令（域名已知后）：
+> ```bash
+> gh secret set SYNC_BASE_URL -R caosj167-cs/arsfan --body "https://<你的域名>"
+> gh secret set CRON_SECRET   -R caosj167-cs/arsfan --body "<与 Render 的 CRON_SECRET 一致>"
+> ```
+
+之后每整点 :05 自动跑 `refresh`、每天 21:00 UTC 跑 `merge`；失败会在 Actions 页面标红。
 
 ### 4.4 其它方案（未采用，备查）
 
@@ -132,25 +141,50 @@ GitHub 仓库 → Settings → Secrets and variables → Actions → New reposit
 
 | 项 | 值 |
 |---|---|
-| Runtime | Node |
-| Build Command | `npm ci && npx prisma generate && npm run build` |
+| Runtime | Node（`NODE_VERSION=22`） |
+| Build Command | **`npm ci --include=dev`** `&& npx prisma generate && npm run build` |
 | Start Command | `npm run start` |
 | Health Check Path | `/api/standings` |
+
+> 🔴 **`--include=dev` 不能省**（2026-09-15 核实并修复）：**Render 构建期会设 `NODE_ENV=production`**，
+> 此时 `npm ci` 会**跳过 devDependencies**。而 `typescript`、`tailwindcss`、`@tailwindcss/postcss`
+> 全在 devDependencies 里 —— Tailwind v4 经 `postcss.config.mjs` 的 `@tailwindcss/postcss`
+> 与 `globals.css` 的 `@import "tailwindcss"` 参与构建，缺了 `next build` 必失败。
+> （Render 官方社区亦确认可直接覆盖 buildCommand。）
 
 > **必要修复（已完成）**：Prisma 客户端输出目录 `app/generated/prisma` 被 `.gitignore` 忽略，
 > 因此**必须**在构建期重新生成。已在 `package.json` 加 `"postinstall": "prisma generate"`，
 > 并在 buildCommand 里也显式跑一次做双保险。否则线上会因找不到 Prisma Client 而 500。
+>
+> ⚠️ `prisma.config.ts` 用 `dotenv/config` + `env("DATABASE_URL")` → **构建期必须有 `DATABASE_URL`**，
+> 否则 `prisma generate` 直接抛错。Render 构建时会注入环境变量 ✓。
+> `dotenv` 本身**未在 package.json 声明**，目前由传递依赖 `c12`（← prisma，属 dependencies）带入；
+> 若日后报找不到 `dotenv`，把它显式加进 dependencies 即可。
 
-部署后在 Render 面板填好环境变量（见第 2 节清单）。
+**创建 Blueprint 时 Render 会弹窗让你填 `sync: false` 的那几个值，务必当场填全**
+（尤其 `DATABASE_URL`，否则第一次构建就会挂在 `prisma generate`）。变量清单见第 2 节；
+`NEXT_PUBLIC_SITE_URL` 必须在**首次构建前**就是真实域名（`NEXT_PUBLIC_*` 会编进客户端包）。
 
-## 6. 从本机切换到生产
+## 6. 从本机切换到生产（按此顺序，**先验证再切换**）
 
-1. 部署站点，配好环境变量（含 `CRON_SECRET`），确认 `/api/standings` 等读接口 200。
-2. 手动触发一次全量：`POST https://<域名>/api/cron/sync` body `{"mode":"both"}`，
-   确认返回 `merge` / `refresh` / `matchReports.aggregated` 都有数据。
-3. 按第 4 节配好 GitHub Actions（推仓库 + 配 Secrets + 跑一次 workflow_dispatch）。
-4. **删除本机的 11 条 WorkBuddy 自动化任务**（10 条「赛程结果刷新 · …」+ 1 条「赛程合并 · 每日 05:00」），
-   避免与本机 dev server 耦合、重复写入。
+数据库是**共享的 Neon**（线上与本机同一 `DATABASE_URL`）→ 部署后立即可见当前数据，**无需迁移/灌数**。
+
+1. **预检（本机）**：`tsc --noEmit` / `eslint` / `vitest run` 全绿；工作区干净、HEAD 已推送。
+   ⚠️ 本机 `next build` 结尾会被 D 盘删除护栏拦（编译/类型/静态页可过）→
+   **首次完整构建的真正验证点在 Render 上**。
+2. **建服务（Render 控制台，需你操作）**：New → Blueprint → 选 `caosj167-cs/arsfan`；
+   弹窗里把所有 `sync: false` 的值填全（含 `DATABASE_URL`）。
+3. **验证读接口**：`GET /api/standings`（应返回 20 行、Arsenal 第 1 · 12 分）、
+   `GET /`（下一场伊普斯维奇带队徽）、`GET /team-data`（积分榜 + 排名走势图）、`/sitemap.xml`、`/robots.txt`。
+4. **配 GitHub Secrets**（第 4.2 节命令），然后 `gh workflow run sync.yml -f mode=both` 验证 200。
+5. **观察下一次定时运行**（每小时 :05）确认自动化真的在跑。
+6. **切换（第 5 步通过之后才做）**：
+   - **删除本机 11 条 WorkBuddy 自动化任务**（已确认存在：1 条「赛程合并 · 每日 05:00」+
+     10 条「赛程结果刷新 · <日期> <对手>」一次性任务，均打 `localhost:3000`）→ 避免与 GH Actions 重复写库。
+   - 停掉本机 dev server。
+
+> 回滚：Render 里回滚到上一个 deploy；或重新启用上面那些自动化任务（本机 `DATABASE_URL` 未变，
+> 随时可继续在本机同步）。
 
 ## 7. 为什么把「每场 +3h 一次性任务」换成「每小时一条」
 

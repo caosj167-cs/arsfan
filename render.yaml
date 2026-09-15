@@ -12,11 +12,18 @@ services:
     plan: starter
     region: singapore
     branch: main
-    buildCommand: npm ci && npx prisma generate && npm run build
+    # ⚠️ 必须带 `--include=dev`：Render 构建期会设 NODE_ENV=production，
+    # 此时 `npm ci` 会跳过 devDependencies —— 而 typescript / tailwindcss /
+    # @tailwindcss/postcss 都在 devDependencies 里（Tailwind v4 经 postcss.config.mjs
+    # 的 @tailwindcss/postcss 参与构建），缺了 next build 必失败。
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
     startCommand: npm run start
     healthCheckPath: /api/standings
     autoDeploy: true
     envVars:
+      # 钉住 Node 大版本，避免 Render 默认版本漂移（Next 16 要求 >=20.9）
+      - key: NODE_VERSION
+        value: "22"
       # 敏感值用 sync: false —— 部署后在 Render 面板里手填，Blueprint 不会覆盖
       - key: DATABASE_URL
         sync: false
