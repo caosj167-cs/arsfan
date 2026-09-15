@@ -29,7 +29,7 @@
 | `NEWS_API_KEY` / `AI_SCRAPER_API_KEY` | ○ | 新闻相关；AI 摘要用 `grok-4.6`（经 YesCode） |
 | `AI_SCRAPER_BASE_URL` / `AI_SCRAPER_MODEL` | ○ | 默认 `https://co-cdn.yes.vg/v1` / `grok-4.6` |
 | `SEASON_START_YEAR` | ○ | 默认 `2026`（26/27 赛季） |
-| `NEXT_PUBLIC_SITE_URL` | ○ | 站点根地址 |
+| `NEXT_PUBLIC_SITE_URL` | ○ | 站点根地址。**线上不用填**：未设时代码回退到 Render 自动注入的 `RENDER_EXTERNAL_URL`（见 `lib/site-url.ts`）；仅绑定自定义域名时再设为该域名 |
 
 ## 3. 定时同步入口
 
@@ -142,28 +142,66 @@ gh run list -R caosj167-cs/arsfan --limit 3        # 看最近几条是否 succe
 | 项 | 值 |
 |---|---|
 | Runtime | Node（`NODE_VERSION=22`） |
+| Plan | **`free`**（已选定；约束见下） |
+| Region | `singapore`（**建服务后不可更改**，见下） |
 | Build Command | **`npm ci --include=dev`** `&& npx prisma generate && npm run build` |
 | Start Command | `npm run start` |
 | Health Check Path | `/api/standings` |
 
-> 🔴 **`--include=dev` 不能省**（2026-09-15 核实并修复）：**Render 构建期会设 `NODE_ENV=production`**，
-> 此时 `npm ci` 会**跳过 devDependencies**。而 `typescript`、`tailwindcss`、`@tailwindcss/postcss`
-> 全在 devDependencies 里 —— Tailwind v4 经 `postcss.config.mjs` 的 `@tailwindcss/postcss`
-> 与 `globals.css` 的 `@import "tailwindcss"` 参与构建，缺了 `next build` 必失败。
-> （Render 官方社区亦确认可直接覆盖 buildCommand。）
+> 🟡 **`--include=dev` 是防御性保险**（2026-09-15 修正表述）：Render 官方文档把
+> `NODE_ENV=production` 标注为 **runtime only**，因此构建期本应会装上 devDependencies。
+> 但 Render 会把**自定义** envVar 同时注入构建与运行环境（官方原文："Unless otherwise noted,
+> these environment variables are available at both build time and runtime"）——
+> 万一以后有人在面板里加了 `NODE_ENV=production`，`npm ci` 就会跳过 devDependencies，
+> 而 `typescript`、`tailwindcss`、`@tailwindcss/postcss` 全在 devDependencies 里
+> （Tailwind v4 经 `postcss.config.mjs` 的 `@tailwindcss/postcss` 与 `globals.css` 的
+> `@import "tailwindcss"` 参与构建），缺了 `next build` 必失败。显式带上该 flag 两种情况都无害。
 
 > **必要修复（已完成）**：Prisma 客户端输出目录 `app/generated/prisma` 被 `.gitignore` 忽略，
 > 因此**必须**在构建期重新生成。已在 `package.json` 加 `"postinstall": "prisma generate"`，
 > 并在 buildCommand 里也显式跑一次做双保险。否则线上会因找不到 Prisma Client 而 500。
 >
 > ⚠️ `prisma.config.ts` 用 `dotenv/config` + `env("DATABASE_URL")` → **构建期必须有 `DATABASE_URL`**，
-> 否则 `prisma generate` 直接抛错。Render 构建时会注入环境变量 ✓。
+> 否则 `prisma generate` 直接抛错。**而 `npm ci` 的 `postinstall` 就会跑 `prisma generate`**，
+> 所以缺了 `DATABASE_URL` 会在 `npm ci` 阶段就失败（不是等到 `next build`）。
+> 另外 7 个页面是 ISR（`revalidate = 300`）→ 构建期就要连 Neon 预渲染，构建期断网同样会失败。
 > `dotenv` 本身**未在 package.json 声明**，目前由传递依赖 `c12`（← prisma，属 dependencies）带入；
 > 若日后报找不到 `dotenv`，把它显式加进 dependencies 即可。
 
-**创建 Blueprint 时 Render 会弹窗让你填 `sync: false` 的那几个值，务必当场填全**
-（尤其 `DATABASE_URL`，否则第一次构建就会挂在 `prisma generate`）。变量清单见第 2 节；
-`NEXT_PUBLIC_SITE_URL` 必须在**首次构建前**就是真实域名（`NEXT_PUBLIC_*` 会编进客户端包）。
+### free 档位的已知约束（选它就要接受）
+
+来源：<https://render.com/docs/free>（2026-09-15 核实）
+
+| 约束 | 影响 | 处置 |
+|---|---|---|
+| 15 分钟无入站流量即休眠，冷启动约 1 分钟 | 首次访问慢；每小时 cron 唤醒时也要等约 1 分钟 | GH Actions 的 curl 用 540s 超时，能容忍 |
+| 每月 750 免费实例小时（休眠期不消耗） | 单服务常驻 ~720h/月，够用；超额会暂停全部免费服务到下月 | 只跑这一个服务即可 |
+| 免费实例不支持 edge 缓存 | 每次请求都落在 Singapore 实例上 | 靠 ISR 本地缓存，可接受 |
+| 休眠期间 `/robots.txt` 被 Render 直接返回 `Disallow: /`（不唤醒服务） | 爬虫在休眠窗口可能读到 disallow | 已知限制，无法规避；升级 starter 可解除 |
+| ⚠️ **"服务主动发起的对外流量过大"可能被暂停**，文档明确把「访问外部数据库」列为例子 | 本项目每小时同步要连外部 Neon + 抓 FotMob / football-data / Wikipedia 等，**落在该条款射程内** | 若被暂停，升级任意付费档位即可恢复 |
+| 实例的本地文件系统在休眠/重启后清空 | ISR 缓存随休眠丢失，唤醒后需重新生成 | 可接受，cron 每小时会重建 |
+
+### 区域为什么是 singapore（且**建服务后改不了**）
+
+官方原文："Render doesn't currently support changing the region for an existing service or database."
+→ 这一项必须在点创建前定好。
+
+- **Neon 在 `us-east-2`（AWS 俄亥俄）**，与 singapore 跨区 → DB 往返约 0.2s 量级。
+- 选 **singapore** 的理由：本站读者在中国，免费档没有 edge 缓存，每次请求都落在该实例上 →
+  到读者的网络跳数比"到数据库的跳数"更影响体验；而 ISR 让页面可走构建期预渲染结果，
+  DB 往返多发生在后台再验证与构建期，不影响读者首屏。
+- 若更看重后台任务/构建速度（与 Neon 同区，往返降到毫秒级），改为 `ohio` 即可 ——
+  **但只能在创建前改**。
+
+**创建 Blueprint 时 Render 会弹窗让你填 `sync: false` 的那 6 个值，务必当场填全**
+（`DATABASE_URL` / `CRON_SECRET` / `FOOTBALL_DATA_API_KEY` / `API_FOOTBALL_KEY` /
+`NEWS_API_KEY` / `AI_SCRAPER_API_KEY`）。变量清单见第 2 节。
+
+> `NEXT_PUBLIC_SITE_URL` **不必填**：`lib/site-url.ts` 的优先级是
+> `NEXT_PUBLIC_SITE_URL` → `RENDER_EXTERNAL_URL` → `http://localhost:3000`，
+> 线上自动得到 `https://<服务名>.onrender.com`（服务名被占用而带后缀时也能自愈）。
+> 该模块只被服务端文件引用（`app/layout.tsx` 的 metadata、`app/robots.ts`、`app/sitemap.ts`），
+> 所以读非 `NEXT_PUBLIC_*` 变量是安全的。绑定自定义域名后再设 `NEXT_PUBLIC_SITE_URL` 覆盖并重新部署。
 
 ## 6. 从本机切换到生产（按此顺序，**先验证再切换**）
 
@@ -173,9 +211,13 @@ gh run list -R caosj167-cs/arsfan --limit 3        # 看最近几条是否 succe
    ⚠️ 本机 `next build` 结尾会被 D 盘删除护栏拦（编译/类型/静态页可过）→
    **首次完整构建的真正验证点在 Render 上**。
 2. **建服务（Render 控制台，需你操作）**：New → Blueprint → 选 `caosj167-cs/arsfan`；
-   弹窗里把所有 `sync: false` 的值填全（含 `DATABASE_URL`）。
+   弹窗里把 6 个 `sync: false` 的值填全（含 `DATABASE_URL`）。档位 `free`、区域 `singapore`
+   由 blueprint 决定（区域建后不可改）。
 3. **验证读接口**：`GET /api/standings`（应返回 20 行、Arsenal 第 1 · 12 分）、
    `GET /`（下一场伊普斯维奇带队徽）、`GET /team-data`（积分榜 + 排名走势图）、`/sitemap.xml`、`/robots.txt`。
+   ⚠️ 顺带核对 `/sitemap.xml` 与 `/robots.txt` 里的域名**是不是真实域名**：若是 `http://localhost:3000`，
+   说明 `RENDER_EXTERNAL_URL` 未在构建期生效 → 在面板加 `NEXT_PUBLIC_SITE_URL=https://<真实域名>`
+   并重新部署（否则 canonical / og:url / sitemap 全指向 localhost）。
 4. **配 GitHub Secrets**（第 4.2 节命令），然后 `gh workflow run sync.yml -f mode=both` 验证 200。
 5. **观察下一次定时运行**（每小时 :05）确认自动化真的在跑。
 6. **切换（第 5 步通过之后才做）**：

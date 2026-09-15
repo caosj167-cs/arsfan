@@ -8,14 +8,28 @@ services:
   - type: web
     name: arsenal-fan-site
     runtime: node
-    # 想省钱可改成 free（代价：15 分钟无访问会休眠，首次访问冷启动约 1 分钟）
-    plan: starter
+    # free 档位（已选定）。约束见 https://render.com/docs/free ：
+    #   · 15 分钟无入站流量即休眠，下次请求冷启动约 1 分钟（GH Actions 的 cron 用 540s 超时可容忍）
+    #   · 每月 750 小时免费实例额度，休眠期不消耗；单服务常驻刚好够用
+    #   · ⚠️ 免费实例若"对外发起流量过大"（文档明确列举"访问外部数据库"）可能被暂停 —— 本项目
+    #     每小时同步会连外部 Neon + 抓 FotMob/football-data 等，属于该条款的射程内。若被暂停，
+    #     升级到 starter 即可恢复；这是选 free 时需要接受的已知风险。
+    plan: free
+    # ⚠️ 区域建服务后**不可更改**（官方文档："Render doesn't currently support changing the
+    # region for an existing service"）。这里选 Singapore 的理由：本站读者在中国，免费档没有
+    # edge 缓存，每次请求都落在该实例上 → 到读者的网络跳数比"到数据库的跳数"更影响体验；
+    # 而 ISR（revalidate=300）让页面渲染可走构建期预渲染结果，DB 往返多发生在后台再验证与
+    # 构建期。代价：Neon 在 us-east-2（俄亥俄），跨区 RTT 约 0.2s 量级，会让构建与后台同步
+    # 略慢，但都不影响读者首屏。若你更看重后台任务/构建速度，可改 ohio（与 Neon 同区）。
     region: singapore
     branch: main
-    # ⚠️ 必须带 `--include=dev`：Render 构建期会设 NODE_ENV=production，
-    # 此时 `npm ci` 会跳过 devDependencies —— 而 typescript / tailwindcss /
-    # @tailwindcss/postcss 都在 devDependencies 里（Tailwind v4 经 postcss.config.mjs
-    # 的 @tailwindcss/postcss 参与构建），缺了 next build 必失败。
+    # `--include=dev` 是防御性保险：Render 官方文档把 NODE_ENV=production 标为 runtime only，
+    # 因此构建期本应会装上 devDependencies；但 Render 会把**自定义** envVar 同时注入构建与运行
+    # 环境（官方文档："Unless otherwise noted, these environment variables are available at both
+    # build time and runtime"）—— 万一以后有人在面板里加了 NODE_ENV=production，npm ci 就会跳过
+    # devDependencies，而 typescript / tailwindcss / @tailwindcss/postcss 都在 devDependencies
+    # （Tailwind v4 经 postcss.config.mjs 的 @tailwindcss/postcss 参与构建）→ next build 必失败。
+    # 显式带上该 flag 在两种情况下都无害。
     buildCommand: npm ci --include=dev && npx prisma generate && npm run build
     startCommand: npm run start
     healthCheckPath: /api/standings
@@ -24,7 +38,9 @@ services:
       # 钉住 Node 大版本，避免 Render 默认版本漂移（Next 16 要求 >=20.9）
       - key: NODE_VERSION
         value: "22"
-      # 敏感值用 sync: false —— 部署后在 Render 面板里手填，Blueprint 不会覆盖
+      # 敏感值用 sync: false —— 创建服务时会弹窗要求当场填，Blueprint 不会覆盖已填值
+      # ⚠️ DATABASE_URL 必须填：构建期就要用（postinstall 的 prisma generate + ISR 页面预渲染
+      #    都要连库），缺了会在 npm ci 的 postinstall 阶段直接失败。
       - key: DATABASE_URL
         sync: false
       - key: CRON_SECRET
@@ -37,7 +53,9 @@ services:
         sync: false
       - key: AI_SCRAPER_API_KEY
         sync: false
-      - key: NEXT_PUBLIC_SITE_URL
-        sync: false
+      # 无需手填 NEXT_PUBLIC_SITE_URL：代码优先读它，未设时回退到 Render 自动注入的
+      # RENDER_EXTERNAL_URL（官方文档：默认环境变量在构建期与运行期均可用）→ 站点绝对 URL
+      # 自动等于 https://<服务名>.onrender.com，连服务名被占用加后缀的情况也能自愈。
+      # 仅当以后绑定自定义域名时，再在面板里加 NEXT_PUBLIC_SITE_URL 覆盖并重新部署。
       - key: SEASON_START_YEAR
         value: "2026"
