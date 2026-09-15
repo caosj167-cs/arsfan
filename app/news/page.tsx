@@ -1,6 +1,12 @@
 import { NewsPage } from "@/components/data-pages";
 import { fetchGuardianNews, type GuardianNewsResult } from "@/lib/providers/guardian";
 import { getOfficialNews } from "@/lib/queries/official";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "新闻",
+  description: "阿森纳官方动态与媒体新闻聚合。",
+};
 
 export const revalidate = 300;
 

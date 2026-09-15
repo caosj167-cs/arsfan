@@ -1,9 +1,33 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: "阿森纳球迷数据中心",
-  description: "阿森纳赛程、比赛结果、积分榜与俱乐部新闻。",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "阿森纳球迷数据中心",
+    template: "%s · 阿森纳球迷数据中心",
+  },
+  description: "阿森纳赛程、比赛结果、积分榜、球员数据与俱乐部新闻的一站式球迷数据中心。",
+  applicationName: "阿森纳球迷数据中心",
+  keywords: ["阿森纳", "Arsenal", "英超", "赛程", "积分榜", "球员数据", "比赛中心"],
+  authors: [{ name: "arsenal-fan-site" }],
+  openGraph: {
+    type: "website",
+    locale: "zh_CN",
+    url: SITE_URL,
+    siteName: "阿森纳球迷数据中心",
+    title: "阿森纳球迷数据中心",
+    description: "阿森纳赛程、比赛结果、积分榜、球员数据与俱乐部新闻的一站式球迷数据中心。",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "阿森纳球迷数据中心",
+    description: "阿森纳赛程、比赛结果、积分榜、球员数据与俱乐部新闻的一站式球迷数据中心。",
+  },
+  alternates: { canonical: SITE_URL },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

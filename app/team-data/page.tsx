@@ -4,6 +4,12 @@ import { getStandings } from "@/lib/queries/football";
 import { getEntryIdsWithReport } from "@/lib/queries/matchReports";
 import { getLeaderboardsWithRealStats } from "@/lib/queries/players";
 import { EXTRA_CREST_BY_OPPONENT_NAME } from "@/lib/data/crests";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "球队数据",
+  description: "阿森纳积分榜、赛程与对手队徽，三源合并的权威数据。",
+};
 
 export const revalidate = 300;
 

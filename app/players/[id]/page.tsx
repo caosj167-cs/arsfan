@@ -4,6 +4,18 @@ import { notFound } from "next/navigation";
 import { PlayerDetail } from "@/components/player-detail";
 import { SiteShell } from "@/components/site-shell";
 import { getPlayerDetail, getPlayerSeasonStatBySlug, seasonLabel } from "@/lib/queries/players";
+import type { Metadata } from "next";
+import { getPlayerById } from "@/lib/data/squad";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const player = getPlayerById(id);
+  if (!player) return { title: "球员未找到" };
+  return {
+    title: `球员：${player.name}`,
+    description: `${player.name}（${player.nameEn}）· ${player.position} · ${player.nationality}，阿森纳 2026-27 赛季球员数据。`,
+  };
+}
 
 export const revalidate = 300;
 

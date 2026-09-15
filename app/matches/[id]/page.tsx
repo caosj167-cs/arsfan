@@ -1,8 +1,14 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 import { MatchCenter } from "@/components/match-center";
 import { SiteShell } from "@/components/site-shell";
 import { getMatchCenter } from "@/lib/queries/matchReports";
+
+export const metadata: Metadata = {
+  title: "比赛中心",
+  description: "阿森纳单场比赛中心数据：比分、球员评分与赛后报告。",
+};
 
 export const revalidate = 300;
 

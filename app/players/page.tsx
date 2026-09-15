@@ -1,6 +1,12 @@
 import { SiteShell } from "@/components/site-shell";
 import { SquadPage } from "@/components/squad-page";
 import { getRealStatsBySlug, getSquadData, resolveSeason, seasonLabel } from "@/lib/queries/players";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "球员阵容",
+  description: "阿森纳 2026-27 赛季一线队阵容、球员能力值与赛季数据。",
+};
 
 export const revalidate = 300;
 
