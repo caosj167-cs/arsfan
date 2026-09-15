@@ -4,7 +4,7 @@ import { apiError, apiJson, ApiErrorCode } from "@/lib/api/respond";
 import { seasonStartYear } from "@/lib/data/season";
 import { refreshFixtureResults, syncFixtureEntries } from "@/lib/sync/fixtureEntries";
 import { syncMatchReports } from "@/lib/sync/matchReports";
-import { syncStandingsFromProvider } from "@/lib/sync/football-data";
+import { syncStandingsFromFotmob } from "@/lib/sync/fotmobStandings";
 
 export const dynamic = "force-dynamic";
 /** 合并三源 + 抓 FotMob 可能较慢；Vercel 需 Pro 才能到 300s，Hobby 上限 60s */
@@ -20,7 +20,7 @@ export const maxDuration = 300;
  *   - 其它调度器用 `Authorization: Bearer <secret>` 或 `x-cron-secret: <secret>`
  *
  * 用法：
- *   GET|POST /api/cron/sync              → 默认 refresh（回填已完赛比分 + 抓比赛中心 + 聚合球员 + 刷新积分榜）
+ *   GET|POST /api/cron/sync              → 默认 refresh（回填已完赛比分 + 刷新积分榜[FotMob] + 抓比赛中心 + 聚合球员）
  *   GET|POST /api/cron/sync?mode=merge   → 三源合并赛程（较重，建议每天一次）
  *   GET|POST /api/cron/sync?mode=both    → 两者都跑
  */
@@ -50,8 +50,8 @@ async function runSync(mode: SyncMode) {
   }
   if (mode === "refresh" || mode === "both") {
     result.refresh = await refreshFixtureResults({ season });
-    // 积分榜随比赛结束变化，refresh 一并刷新（不碰赛程，避免冲掉三源合并数据）
-    result.standings = await syncStandingsFromProvider({ season }).catch((error) => {
+    // 积分榜随比赛结束变化，refresh 一并刷新：抓 FotMob 联赛表（与进球/助攻榜同源），不碰赛程
+    result.standings = await syncStandingsFromFotmob().catch((error) => {
       console.error("Standings sync (cron) failed", error);
       return null;
     });

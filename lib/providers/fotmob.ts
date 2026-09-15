@@ -40,14 +40,15 @@ export type FotmobRawMatch = { general: Json; header: Json; content: Json };
 
 /* ---------------- 抓取 + 解析 ---------------- */
 
-async function fetchHtml(url: string): Promise<string> {
+async function fetchHtml(url: string, init: { noStore?: boolean } = {}): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": USER_AGENT },
-      next: { revalidate: 900 },
+      // 同步入口要最新值：noStore 时禁用 Next 数据缓存；渲染路径仍按 15 分钟缓存
+      ...(init.noStore ? { cache: "no-store" as RequestCache } : { next: { revalidate: 900 } }),
     });
     if (!response.ok) throw new Error(`FotMob page request failed with HTTP ${response.status}`);
     return await response.text();
@@ -442,4 +443,100 @@ export function normalizeFotmobMatch(matchId: string, raw: FotmobRawMatch): Matc
   if (!payload.lineups.away.starters.length) missing.push("awayLineup");
 
   return payload;
+}
+
+/* ---------------- 联赛积分表（联赛页内嵌 __NEXT_DATA__） ---------------- */
+
+/** FotMob 联赛 id：英超 = 47（同源：Arsenal 球队 id = 9825） */
+export const FOTMOB_PREMIER_LEAGUE_ID = 47;
+
+export type FotmobTableRow = {
+  /** 名次（FotMob 字段 idx） */
+  position: number;
+  /** FotMob 球队 id（Arsenal = 9825） */
+  teamId: number;
+  name: string;
+  shortName: string | null;
+  pageUrl: string | null;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+  qualColor: string | null;
+};
+
+export type FotmobLeagueTable = {
+  leagueId: number;
+  leagueName: string;
+  /** FotMob 的赛季串，如 "2026/2027" */
+  selectedSeason: string | null;
+  isCurrentSeason: boolean;
+  rows: FotmobTableRow[];
+  missing: string[];
+};
+
+/** FotMob 的 scoresStr 形如 "8-1"（进球-失球）。导出以便单测。 */
+export function parseGoalsPair(value: string | null): { goalsFor: number; goalsAgainst: number } | null {
+  if (!value) return null;
+  const m = value.match(/^\s*(\d+)\s*-\s*(\d+)\s*$/);
+  if (!m) return null;
+  return { goalsFor: Number(m[1]), goalsAgainst: Number(m[2]) };
+}
+
+/**
+ * 抓取 FotMob 联赛积分表（与比赛页同套路：抓页面 HTML → 解析内嵌 `__NEXT_DATA__`）。
+ * 路径：`props.pageProps.table[0].data`，总榜在 `data.table.all`。
+ * 字段缺失留空并记入 missing，不编造。
+ */
+export async function fetchFotmobLeagueTable(leagueId = FOTMOB_PREMIER_LEAGUE_ID): Promise<FotmobLeagueTable> {
+  const html = await fetchHtml(`https://www.fotmob.com/leagues/${leagueId}`, { noStore: true });
+  const data = extractNextData(html);
+  const pageProps = asRecord(asRecord(data?.props)?.pageProps);
+  const container = Array.isArray(pageProps?.table) ? asRecord(pageProps.table[0]) : null;
+  const payload = asRecord(container?.data);
+  const rowsRaw = asRecord(payload?.table)?.all;
+
+  const missing: string[] = [];
+  const rows: FotmobTableRow[] = [];
+  if (!Array.isArray(rowsRaw)) {
+    missing.push("table.all");
+  } else {
+    for (const raw of rowsRaw) {
+      const r = asRecord(raw);
+      if (!r) continue;
+      const teamId = num(r.id);
+      if (teamId === null) continue;
+      const pair = parseGoalsPair(str(r.scoresStr));
+      if (!pair) missing.push(`scoresStr:${str(r.name) ?? teamId}`);
+      rows.push({
+        position: num(r.idx) ?? rows.length + 1,
+        teamId,
+        name: str(r.name) ?? "",
+        shortName: str(r.shortName),
+        pageUrl: str(r.pageUrl),
+        played: num(r.played) ?? 0,
+        won: num(r.wins) ?? 0,
+        drawn: num(r.draws) ?? 0,
+        lost: num(r.losses) ?? 0,
+        goalsFor: pair?.goalsFor ?? 0,
+        goalsAgainst: pair?.goalsAgainst ?? 0,
+        goalDifference: num(r.goalConDiff) ?? 0,
+        points: num(r.pts) ?? 0,
+        qualColor: str(r.qualColor),
+      });
+    }
+  }
+
+  return {
+    leagueId: num(payload?.leagueId) ?? leagueId,
+    leagueName: str(payload?.leagueName) ?? "",
+    selectedSeason: str(payload?.selectedSeason),
+    isCurrentSeason: payload?.isCurrentSeason === true,
+    rows,
+    missing,
+  };
 }

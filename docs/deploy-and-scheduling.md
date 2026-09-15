@@ -37,10 +37,26 @@
 
 ```
 GET|POST /api/cron/sync                 → refresh（默认）
-                                        # 回填已完赛比分 + 抓 FotMob 比赛中心 + 聚合球员赛季数据
+                                        # 回填已完赛比分 + 刷新积分榜(FotMob) + 抓 FotMob 比赛中心 + 聚合球员赛季数据
 GET|POST /api/cron/sync?mode=merge      → 三源合并赛程（football-data + arsenal.com + Wikipedia）
 GET|POST /api/cron/sync?mode=both       → 两者都跑
 ```
+
+### 数据来源分工（2026-09-15 起）
+
+| 数据 | 来源 | 入口 |
+|---|---|---|
+| 积分榜 | **FotMob 联赛表抓取**（`lib/sync/fotmobStandings.ts`） | cron `refresh`/`both`；手动 `POST /api/sync/standings` |
+| 进球榜/助攻榜 | **FotMob 比赛页抓取** → 聚合 | 同上（`matchReports` → `playerStats`） |
+| 赛程合并 | football-data.org + arsenal.com + Wikipedia | cron `merge` |
+| 比分回填 | football-data.org | cron `refresh` |
+
+> 积分榜原先走 football-data.org 的 standings API，该源长期滞后（2026-27 赛季只到第 2 轮），
+> 与 FotMob 官网口径（第 4 轮、阿森纳 12 分）不一致，故改为**与进球/助攻榜同源抓取 FotMob**。
+> `syncStandingsFromFotmob()` 复用 getStandings() 读取的 competition/season，并按归一化队名把
+> FotMob 行映射到既有 football-data 球队行，只 upsert StandingEntry（不新增球队、保住"阿森纳高亮"）。
+> ⚠️ 手动 `POST /api/sync/football-data` 是 football-data 全量同步，**仍会**用旧源覆盖积分榜；
+> 正常定时链路不会走它。
 
 鉴权（任选其一，无密钥返回 401 统一信封）：
 
