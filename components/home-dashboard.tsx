@@ -26,11 +26,13 @@ const COMPETITION_SHORT: Record<string, string> = {
   ECL: "欧协联",
   FACUP: "足总杯",
   LCUP: "联赛杯",
+  CS: "社区盾",
   "Premier League": "英超",
   "Champions League": "欧冠",
   "FA Cup": "足总杯",
   "League Cup": "联赛杯",
   "EFL Cup": "联赛杯",
+  "Community Shield": "社区盾",
 };
 
 function competitionShort(code: string | null, name: string) {

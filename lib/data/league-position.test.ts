@@ -74,6 +74,12 @@ describe("buildPositionProgression", () => {
     expect(buildPositionProgression(matches, 1)).toEqual([]);
   });
 
+  it("该轮多于 10 场（脏数据/串轮）也整轮跳过，不把多余比赛计入", () => {
+    const eleven = round(1, [...ROUND1, [2, 5, 9, 0] as Result]);
+    expect(eleven).toHaveLength(11);
+    expect(buildPositionProgression(eleven, 1)).toEqual([]);
+  });
+
   it("多轮累加，名次会变化（R1 第1 → R2 第2）", () => {
     expect(round(2, ROUND2)).toHaveLength(10);
     const rows = buildPositionProgression([...round(1, ROUND1), ...round(2, ROUND2)], 1);

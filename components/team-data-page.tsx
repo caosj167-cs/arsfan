@@ -68,6 +68,8 @@ function competitionClass(value: string | null | undefined): string {
     case "足总杯": return "comp-facup";
     case "联赛杯": return "comp-lcup";
     case "欧联": return "comp-el";
+    case "欧协联": return "comp-ecl";
+    case "社区盾": return "comp-cs";
     default: return "";
   }
 }

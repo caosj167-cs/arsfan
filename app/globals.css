@@ -61,6 +61,10 @@
   --comp-facup-bg:      #33101A;
   --comp-el-fg:         #FFB067;
   --comp-el-bg:         #3A2410;
+  --comp-ecl-fg:        #5FE0C8;
+  --comp-ecl-bg:        #0C2B27;
+  --comp-cs-fg:         #E3C878;
+  --comp-cs-bg:         #33290E;
   --comp-friendly-fg:   #B4B4C0;
   --comp-friendly-bg:   rgba(255, 255, 255, 0.08);
 
@@ -663,6 +667,8 @@ h3 { font-size: var(--fs-h3); font-weight: 600; }
 .filter-chip.comp-lcup { background: var(--comp-lcup-bg); color: var(--comp-lcup-fg); }
 .filter-chip.comp-facup { background: var(--comp-facup-bg); color: var(--comp-facup-fg); }
 .filter-chip.comp-el { background: var(--comp-el-bg); color: var(--comp-el-fg); }
+.filter-chip.comp-ecl { background: var(--comp-ecl-bg); color: var(--comp-ecl-fg); }
+.filter-chip.comp-cs { background: var(--comp-cs-bg); color: var(--comp-cs-fg); }
 /* 选中态压过赛事配色（设计稿：实心红块 + 白字） */
 .filter-chip.filter-chip--active { background: var(--arsenal-red); color: #fff; }
 
@@ -758,6 +764,8 @@ h3 { font-size: var(--fs-h3); font-weight: 600; }
 .fx-comp.comp-lcup { background: var(--comp-lcup-bg); color: var(--comp-lcup-fg); }
 .fx-comp.comp-facup { background: var(--comp-facup-bg); color: var(--comp-facup-fg); }
 .fx-comp.comp-el { background: var(--comp-el-bg); color: var(--comp-el-fg); }
+.fx-comp.comp-ecl { background: var(--comp-ecl-bg); color: var(--comp-ecl-fg); }
+.fx-comp.comp-cs { background: var(--comp-cs-bg); color: var(--comp-cs-fg); }
 .fx-venue { background: var(--line-soft); color: var(--text-secondary); }
 .fx-row--next .fx-venue { background: var(--line-mid); color: var(--accent-link); }
 

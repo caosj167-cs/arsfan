@@ -90,7 +90,9 @@ export function buildPositionProgression(matches: LeagueMatchInput[], teamId: nu
 
   for (const round of rounds) {
     const roundMatches = byRound.get(round) ?? [];
-    if (roundMatches.length < MATCHES_PER_ROUND) continue;
+    // 必须**恰好** 10 场才算这一轮完整：少于 10 是还没踢完；
+    // 多于 10 说明数据有重复/串轮，宁可跳过也不要算出错误名次。
+    if (roundMatches.length !== MATCHES_PER_ROUND) continue;
 
     for (const match of roundMatches) {
       const home = ensure(match.homeTeamId, match.homeName);

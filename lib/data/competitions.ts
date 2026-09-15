@@ -4,10 +4,16 @@
  */
 export type CompetitionInfo = { name: string; code: string | null };
 
+// ⚠️ 顺序即优先级：先命中的规则生效。
 const RULES: Array<{ code: string; name: string; patterns: RegExp[] }> = [
-  { code: "PL", name: "Premier League", patterns: [/premier league/i, /\bepl\b/i] },
+  // `premier league` / `league cup` 都是子串匹配，必须把 PL2 / Premier League Cup /
+  // International Cup 这类同名青年或次级赛事一并排除，否则会被误判成英超或联赛杯。
+  { code: "PL", name: "Premier League", patterns: [/\bpremier league\b(?!\s*(?:2\b|cup|international))/i, /\bepl\b/i] },
   { code: "CL", name: "UEFA Champions League", patterns: [/champions league/i, /\bucl\b/i] },
-  { code: "LC", name: "League Cup", patterns: [/efl cup/i, /league cup/i, /carabao/i, /\bleague cup\b/i] },
+  { code: "EL", name: "UEFA Europa League", patterns: [/europa league/i, /\buel\b/i] },
+  { code: "ECL", name: "UEFA Conference League", patterns: [/conference league/i] },
+  // 联赛杯只认 EFL/卡拉宝/裸的 "League Cup"；`(?<!premier )` 防止吃掉 "Premier League Cup"
+  { code: "LC", name: "League Cup", patterns: [/efl cup/i, /(?<!premier )league cup/i, /carabao/i] },
   { code: "FAC", name: "FA Cup", patterns: [/\bfa cup\b/i] },
   // 维基把这场写作 "FA Community Shield"；页面的赛事标签用的是 "Community Shield"（→ 社区盾）
   { code: "CS", name: "Community Shield", patterns: [/community shield/i] },
@@ -28,4 +34,5 @@ export function isOfficialCompetition(raw: string | null | undefined): boolean {
   return normalizeCompetition(raw).code !== "FR";
 }
 
-export const OFFICIAL_COMPETITION_CODES = ["PL", "CL", "LC", "FAC"] as const;
+/** 已登记（有一等公民待遇：中文标签 + 专属配色）的赛事码。新增赛事时同步补这里 + 两处 UI 标签/颜色。 */
+export const OFFICIAL_COMPETITION_CODES = ["PL", "CL", "EL", "ECL", "LC", "FAC", "CS"] as const;

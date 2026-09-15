@@ -62,21 +62,25 @@ async function footballDataCandidates(season: number): Promise<Candidate[]> {
   const { start, end } = seasonWindow(season);
   const rows = await prisma.fixture.findMany({
     where: { utcDate: { gte: start, lte: end } },
-    include: { homeTeam: true, awayTeam: true },
+    include: { homeTeam: true, awayTeam: true, competition: true },
   });
   return rows
     .filter((f) => f.homeTeam.providerTeamId === ARSENAL_PROVIDER_TEAM_ID || f.awayTeam.providerTeamId === ARSENAL_PROVIDER_TEAM_ID)
     .map((f) => {
       const arsenalHome = f.homeTeam.providerTeamId === ARSENAL_PROVIDER_TEAM_ID;
       const opponent = arsenalHome ? f.awayTeam : f.homeTeam;
+      // 赛事名从 Fixture 的 competition 关系推导——**不要硬编码 Premier League**：
+      // 否则日后 football-data 侧同步了别的赛事（改 FOOTBALL_DATA_COMPETITION 等），
+      // 这些行会被一律标成英超。当前 Fixture 全是 PL，行为与硬编码完全一致。
+      const competition = normalizeCompetition(f.competition.name);
       return {
         source: "football-data.org" as const,
         kickoffAt: f.utcDate,
         opponentName: opponent.name,
         opponentCrest: opponent.crest,
         homeAway: arsenalHome ? ("HOME" as const) : ("AWAY" as const),
-        competition: "Premier League",
-        competitionCode: "PL",
+        competition: competition.name,
+        competitionCode: competition.code,
         status: f.status,
         homeScore: f.homeScore,
         awayScore: f.awayScore,
