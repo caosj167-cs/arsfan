@@ -3,8 +3,9 @@ import { getFixtureEntries } from "@/lib/queries/fixtureEntries";
 import { getStandings } from "@/lib/queries/football";
 import { getEntryIdsWithReport } from "@/lib/queries/matchReports";
 import { getLeaderboardsWithRealStats } from "@/lib/queries/players";
+import { EXTRA_CREST_BY_OPPONENT_NAME } from "@/lib/data/crests";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 type TeamLike = { name: string; shortName: string | null; crest: string | null };
 
@@ -33,7 +34,10 @@ function buildCrestMap(...groups: TeamLike[][]): Record<string, string> {
 export default async function TeamDataRoute() {
   const [entriesResult, standingsResult] = await Promise.all([getFixtureEntries(), getStandings()]);
 
-  const crestMap = buildCrestMap(standingsResult.standings.map((row) => row.team));
+  const crestMap = {
+    ...buildCrestMap(standingsResult.standings.map((row) => row.team)),
+    ...EXTRA_CREST_BY_OPPONENT_NAME,
+  };
 
   const { scorers, assisters, season: leaderboardSeason } = await getLeaderboardsWithRealStats();
   const entryReportIds = await getEntryIdsWithReport(entriesResult.season);

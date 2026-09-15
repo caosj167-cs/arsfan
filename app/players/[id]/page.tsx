@@ -5,7 +5,7 @@ import { PlayerDetail } from "@/components/player-detail";
 import { SiteShell } from "@/components/site-shell";
 import { getPlayerDetail, getPlayerSeasonStatBySlug, seasonLabel } from "@/lib/queries/players";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function PlayerRoute({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

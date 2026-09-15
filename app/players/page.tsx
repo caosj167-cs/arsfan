@@ -2,7 +2,7 @@ import { SiteShell } from "@/components/site-shell";
 import { SquadPage } from "@/components/squad-page";
 import { getRealStatsBySlug, getSquadData, resolveSeason, seasonLabel } from "@/lib/queries/players";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function SquadRoute() {
   const data = getSquadData();

@@ -3,6 +3,7 @@ import { isOfficialCompetition, normalizeCompetition } from "@/lib/data/competit
 import { seasonStartYear } from "@/lib/data/season";
 import { fetchArsenalFixtures } from "@/lib/providers/arsenal";
 import { fetchWikipediaFixtures } from "@/lib/providers/wikipedia";
+import { extraCrestForOpponentKey } from "@/lib/data/crests";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -179,13 +180,18 @@ export type FixtureEntrySyncResult = {
 export async function syncFixtureEntries(options: { season?: number } = {}): Promise<FixtureEntrySyncResult> {
   const season = options.season ?? seasonStartYear();
 
+  // 记录哪些抓取源本趟失败：失败源独有的行不能被「差集删除」清掉（见下方 delete 守卫）。
+  let arsenalFailed = false;
+  let wikipediaFailed = false;
   const [fd, ars, wiki] = await Promise.all([
     footballDataCandidates(season),
     arsenalCandidates(season).catch((error) => {
+      arsenalFailed = true;
       console.error("arsenal.com candidates failed", error);
       return [] as Candidate[];
     }),
     wikipediaCandidates(season).catch((error) => {
+      wikipediaFailed = true;
       console.error("wikipedia candidates failed", error);
       return [] as Candidate[];
     }),
@@ -232,15 +238,28 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
       : null;
 
     const fdStatus = ranked.find((c) => c.source === "football-data.org")?.status;
-    // 未开赛的场次一律写非终场状态，即使抓取源给了比分或 FINISHED 也不采用
+    // 已完赛判定：
+    //   任一来源明确报 FINISHED/AWARDED，或「有比分且 fd 未处于实时进行态（IN_PLAY/PAUSED）」
+    //   都算已完赛 —— 解决「9/12 桑德兰 fd 仍卡在 TIMED、但 wikipedia 已有比分」却显示未完赛的问题。
+    //   注意不能把「有比分」直接等同 FINISHED：进行中的比赛 fd 会带实时部分比分，要保留 IN_PLAY/PAUSED。
+    const finished =
+      fdStatus === "FINISHED" ||
+      fdStatus === "AWARDED" ||
+      ranked.some((c) => c.status === "FINISHED" || c.status === "AWARDED") ||
+      (scored !== null && !(fdStatus && SETTLED_STATUSES.has(fdStatus)));
     const status = started
-      ? fdStatus ?? (scored ? "FINISHED" : "SCHEDULED")
+      ? finished
+        ? "FINISHED"
+        : fdStatus && SETTLED_STATUSES.has(fdStatus)
+          ? fdStatus
+          : fdStatus ?? "SCHEDULED"
       : fdStatus && !SETTLED_STATUSES.has(fdStatus)
         ? fdStatus
         : "SCHEDULED";
 
-    const crest = ranked.find((c) => c.opponentCrest)?.opponentCrest ?? null;
     const key = opponentKey(canonical.opponentName);
+    const crest =
+      ranked.find((c) => c.opponentCrest)?.opponentCrest ?? extraCrestForOpponentKey(key) ?? null;
 
     rows.push({
       season,
@@ -291,9 +310,33 @@ export async function syncFixtureEntries(options: { season?: number } = {}): Pro
 
   const saved = ops.length ? await prisma.$transaction(ops) : [];
   const keepIds = saved.map((s) => s.id);
-  await prisma.fixtureEntry.deleteMany({
-    where: keepIds.length ? { season, id: { notIn: keepIds } } : { season },
-  });
+
+  // 破坏性删除守卫：本趟同步只会「差集删除」那些——
+  //   ① 这次没被重新生成（不在 keepIds），且
+  //   ② 其主来源（primarySource）本趟成功抓取到了的比赛。
+  // 凡是 primarySource 属于「本趟失败源」的行一律保留：否则一旦 wikipedia/arsenal.com
+  // 抓取失败，它们独有的 8 场欧战/杯赛就会被整体删掉（数据丢失，已发生过的 bug）。
+  const failedSources = new Set<FixtureSourceLabel>();
+  if (arsenalFailed) failedSources.add("arsenal.com");
+  if (wikipediaFailed) failedSources.add("wikipedia");
+
+  if (failedSources.size === 0) {
+    // 全部成功：维持原行为，按 keepIds 差集删除
+    await prisma.fixtureEntry.deleteMany({
+      where: keepIds.length ? { season, id: { notIn: keepIds } } : { season },
+    });
+  } else {
+    const orphans = await prisma.fixtureEntry.findMany({
+      where: keepIds.length ? { season, id: { notIn: keepIds } } : { season },
+      select: { id: true, primarySource: true },
+    });
+    const deleteIds = orphans
+      .filter((row) => !failedSources.has(row.primarySource as FixtureSourceLabel))
+      .map((row) => row.id);
+    if (deleteIds.length) {
+      await prisma.fixtureEntry.deleteMany({ where: { id: { in: deleteIds } } });
+    }
+  }
 
   return {
     season,

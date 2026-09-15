@@ -4,7 +4,7 @@ import { MatchCenter } from "@/components/match-center";
 import { SiteShell } from "@/components/site-shell";
 import { getMatchCenter } from "@/lib/queries/matchReports";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function MatchRoute({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

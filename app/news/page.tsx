@@ -2,7 +2,7 @@ import { NewsPage } from "@/components/data-pages";
 import { fetchGuardianNews, type GuardianNewsResult } from "@/lib/providers/guardian";
 import { getOfficialNews } from "@/lib/queries/official";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function NewsRoute() {
   const [officialResult, guardianResult] = await Promise.allSettled([

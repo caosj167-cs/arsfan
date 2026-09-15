@@ -1,7 +1,9 @@
 // ---------------------------------------------------------------
 // 球员头像：本地化自 arsenal.com 球员页（2026-27 赛季阵容）
 // 文件位于 public/players/{id}.png，由脚本从官网下载。
-// 离队 / 无头像的球员（如 max-dowman）回退到默认占位图。
+// max-dowman 官网抓取被 Akamai 拦截，改用 Wikimedia Commons 自由授权照片
+//   （File:1 max dowman arsenal 2025 (cropped).jpg，已裁为 400×400）。
+// 未收录头像的球员回退到默认占位图。
 // ---------------------------------------------------------------
 
 export const DEFAULT_PLAYER_PHOTO = "/players/default-avatar.svg";
@@ -23,6 +25,7 @@ export const PLAYER_PHOTOS: Record<string, string> = {
   "kepa-arrizabalaga": "/players/kepa-arrizabalaga.png",
   "martin-odegaard": "/players/martin-odegaard.png",
   "martin-zubimendi": "/players/martin-zubimendi.png",
+  "max-dowman": "/players/max-dowman.png",
   "mikel-merino": "/players/mikel-merino.png",
   "myles-lewis-skelly": "/players/myles-lewis-skelly.png",
   "noni-madueke": "/players/noni-madueke.png",
