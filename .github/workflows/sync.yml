@@ -1,0 +1,76 @@
+name: Arsenal 数据同步
+
+# 生产环境定时同步（替代本机 WorkBuddy 自动化任务）。
+# 前置：代码已推送到 GitHub（schedule 只在默认分支生效）。
+# 需要在仓库 Settings → Secrets and variables → Actions 里配置：
+#   SYNC_BASE_URL  Render 站点根地址，如 https://arsenal-fan-site.onrender.com（不要带结尾斜杠）
+#   CRON_SECRET    与 Render 环境变量 CRON_SECRET 一致
+
+on:
+  schedule:
+    # 每小时第 5 分：回填已完赛比分 + 抓比赛中心 + 聚合球员赛季数据
+    - cron: "5 * * * *"
+    # 每天 21:00 UTC（北京 05:00）：三源合并赛程
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "同步模式"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - refresh
+          - merge
+          - both
+
+concurrency:
+  group: arsenal-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 触发线上同步接口
+        env:
+          BASE_URL: ${{ secrets.SYNC_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SCHEDULE: ${{ github.event.schedule }}
+          MANUAL_MODE: ${{ github.event.inputs.mode }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BASE_URL:-}" ]; then
+            echo "::error::缺少仓库 Secret SYNC_BASE_URL（线上站点根地址）"; exit 1
+          fi
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::缺少仓库 Secret CRON_SECRET（需与线上环境变量一致）"; exit 1
+          fi
+
+          if [ -n "${MANUAL_MODE:-}" ]; then
+            MODE="$MANUAL_MODE"
+          elif [ "${SCHEDULE:-}" = "0 21 * * *" ]; then
+            MODE="merge"
+          else
+            MODE="refresh"
+          fi
+
+          URL="${BASE_URL%/}/api/cron/sync?mode=${MODE}"
+          echo "POST ${URL}"
+
+          HTTP=$(curl -sS --max-time 540 -o resp.json -w "%{http_code}" \
+            -X POST "${URL}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "content-type: application/json" \
+            -d "{\"mode\":\"${MODE}\"}")
+
+          echo "HTTP ${HTTP}"
+          cat resp.json || true
+          echo
+
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::同步失败（HTTP ${HTTP}）"
+            exit 1
+          fi
