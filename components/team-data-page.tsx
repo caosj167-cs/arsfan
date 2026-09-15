@@ -4,10 +4,10 @@ import { Fragment, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { ClubBadge } from "@/components/club-badge";
-import { LeagueProgressChart } from "@/components/league-progress-chart";
+import { LeaguePositionChart } from "@/components/league-progress-chart";
 import { SiteShell } from "@/components/site-shell";
 import { clubName } from "@/lib/data/clubs";
-import { buildLeagueProgression } from "@/lib/data/points-progression";
+import type { PositionPoint } from "@/lib/data/league-position";
 import type { StandingView } from "@/lib/queries/football";
 import type { FixtureEntryView } from "@/lib/queries/fixtureEntries";
 import { seasonLabel } from "@/lib/data/season";
@@ -26,6 +26,8 @@ type Props = {
   assisters: LeaderRow[];
   /** 真实榜单数据对应的赛季（起始年）；未命中真实数据的行为“—” */
   leaderboardSeason: number | null;
+  /** 英超名次走势（逐轮，由积分榜同步时用全量联赛结果算出） */
+  positionProgression: PositionPoint[];
   /** name → crest URL, built from football-data teams (arsenal.com exposes no logos) */
   crestMap: Record<string, string>;
   /** 服务端时间（ISO），用于判断“下一场”，避免在渲染期调用 Date.now() */
@@ -243,16 +245,13 @@ function FixturesTab({ entries, entryReportIds, crestMap, nowIso }: Pick<Props, 
 
 /* ---------------- Standings tab ---------------- */
 
-function StandingsTab({ standings, entries }: Pick<Props, "standings" | "entries">) {
-  const progression = useMemo(() => buildLeagueProgression(entries), [entries]);
-  const progressSeason = entries.length ? seasonLabel(entries[0].season) : null;
+function StandingsTab({ standings, positionProgression }: Pick<Props, "standings" | "positionProgression">) {
   return (
     <>
       <div className="standings-toolbar">
         <p className="data-kicker">2026-27 赛季 <b>&rsaquo;</b></p>
         <div className="standings-select"><span>&#9679;</span> 英超积分榜 <b>&#8964;</b></div>
       </div>
-      <LeagueProgressChart points={progression} competitionLabel="英超" seasonLabel={progressSeason} />
       <div className="standings-table">
         <div className="standing-head">
           <span>排名</span><span>球队</span><span>已赛</span><span>胜</span><span>平</span><span>负</span><span>净胜</span><span>积分</span>
@@ -276,6 +275,7 @@ function StandingsTab({ standings, entries }: Pick<Props, "standings" | "entries
         <span><i className="zone-key zone-key--europe" />欧战资格区</span>
         <span><i className="zone-key zone-key--bottom" />降级区</span>
       </div>
+      <LeaguePositionChart points={positionProgression} competitionLabel="英超" />
     </>
   );
 }
@@ -381,7 +381,7 @@ export function TeamDataPage(props: Props) {
         </nav>
 
         {tab === "fixtures" ? <FixturesTab entries={props.entries} entryReportIds={props.entryReportIds} crestMap={props.crestMap} nowIso={props.nowIso} /> : null}
-        {tab === "standings" ? <StandingsTab standings={props.standings} entries={props.entries} /> : null}
+        {tab === "standings" ? <StandingsTab standings={props.standings} positionProgression={props.positionProgression} /> : null}
         {tab === "goals" ? <LeaderTable rows={props.scorers} metric="goals" season={props.leaderboardSeason} /> : null}
         {tab === "assists" ? <LeaderTable rows={props.assisters} metric="assists" season={props.leaderboardSeason} /> : null}
       </section>

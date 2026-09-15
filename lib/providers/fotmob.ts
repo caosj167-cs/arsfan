@@ -469,13 +469,31 @@ export type FotmobTableRow = {
   qualColor: string | null;
 };
 
-export type FotmobLeagueTable = {
+/** FotMob 联赛页里的一场比赛（`pageProps.fixtures.allMatches`，覆盖全部轮次） */
+export type FotmobLeagueMatch = {
+  /** 轮次（FotMob 的 round 是字符串，这里归一为数字） */
+  round: number | null;
+  matchId: string;
+  kickoffAt: string | null;
+  homeTeamId: number;
+  homeName: string;
+  awayTeamId: number;
+  awayName: string;
+  finished: boolean;
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+export type FotmobLeagueSnapshot = {
   leagueId: number;
   leagueName: string;
   /** FotMob 的赛季串，如 "2026/2027" */
   selectedSeason: string | null;
   isCurrentSeason: boolean;
+  /** 当前积分表（20 行） */
   rows: FotmobTableRow[];
+  /** 全部赛程（38 轮 × 10 场 = 380 场，含已完赛比分），用于逐轮推算排名 */
+  matches: FotmobLeagueMatch[];
   missing: string[];
 };
 
@@ -487,20 +505,42 @@ export function parseGoalsPair(value: string | null): { goalsFor: number; goalsA
   return { goalsFor: Number(m[1]), goalsAgainst: Number(m[2]) };
 }
 
+/** 比赛比分串形如 "3 - 0"（主队-客队） */
+function parseMatchScore(value: string | null): { home: number; away: number } | null {
+  if (!value) return null;
+  const m = value.match(/^\s*(\d+)\s*-\s*(\d+)\s*$/);
+  if (!m) return null;
+  return { home: Number(m[1]), away: Number(m[2]) };
+}
+
+/** 积分表里球队 id 是数字，赛程里却是字符串（"9825"），统一转数字 */
+function idNum(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
 /**
- * 抓取 FotMob 联赛积分表（与比赛页同套路：抓页面 HTML → 解析内嵌 `__NEXT_DATA__`）。
- * 路径：`props.pageProps.table[0].data`，总榜在 `data.table.all`。
+ * 抓取 FotMob 联赛页快照——一次请求同时取两样（同套路：抓 HTML → 解析内嵌 `__NEXT_DATA__`）：
+ *   - 当前积分表：`props.pageProps.table[0].data.table.all`
+ *   - 全部赛程（含已完赛比分）：`props.pageProps.fixtures.allMatches`
  * 字段缺失留空并记入 missing，不编造。
  */
-export async function fetchFotmobLeagueTable(leagueId = FOTMOB_PREMIER_LEAGUE_ID): Promise<FotmobLeagueTable> {
+export async function fetchFotmobLeagueSnapshot(
+  leagueId = FOTMOB_PREMIER_LEAGUE_ID,
+): Promise<FotmobLeagueSnapshot> {
   const html = await fetchHtml(`https://www.fotmob.com/leagues/${leagueId}`, { noStore: true });
   const data = extractNextData(html);
   const pageProps = asRecord(asRecord(data?.props)?.pageProps);
+  const missing: string[] = [];
+
+  // ---- 1) 当前积分表 ----
   const container = Array.isArray(pageProps?.table) ? asRecord(pageProps.table[0]) : null;
   const payload = asRecord(container?.data);
   const rowsRaw = asRecord(payload?.table)?.all;
-
-  const missing: string[] = [];
   const rows: FotmobTableRow[] = [];
   if (!Array.isArray(rowsRaw)) {
     missing.push("table.all");
@@ -508,7 +548,7 @@ export async function fetchFotmobLeagueTable(leagueId = FOTMOB_PREMIER_LEAGUE_ID
     for (const raw of rowsRaw) {
       const r = asRecord(raw);
       if (!r) continue;
-      const teamId = num(r.id);
+      const teamId = idNum(r.id);
       if (teamId === null) continue;
       const pair = parseGoalsPair(str(r.scoresStr));
       if (!pair) missing.push(`scoresStr:${str(r.name) ?? teamId}`);
@@ -531,12 +571,47 @@ export async function fetchFotmobLeagueTable(leagueId = FOTMOB_PREMIER_LEAGUE_ID
     }
   }
 
+  // ---- 2) 全部赛程（含已完赛比分）----
+  const matchesRaw = asRecord(pageProps?.fixtures)?.allMatches;
+  const matches: FotmobLeagueMatch[] = [];
+  if (!Array.isArray(matchesRaw)) {
+    missing.push("fixtures.allMatches");
+  } else {
+    for (const raw of matchesRaw) {
+      const m = asRecord(raw);
+      if (!m) continue;
+      const matchId = m.id === undefined || m.id === null ? null : String(m.id);
+      if (!matchId) continue;
+      const home = asRecord(m.home) ?? {};
+      const away = asRecord(m.away) ?? {};
+      const homeTeamId = idNum(home.id);
+      const awayTeamId = idNum(away.id);
+      if (homeTeamId === null || awayTeamId === null) continue;
+      const status = asRecord(m.status) ?? {};
+      const score = parseMatchScore(str(status.scoreStr));
+      const roundRaw = num(m.roundName) ?? idNum(m.round);
+      matches.push({
+        round: roundRaw,
+        matchId,
+        kickoffAt: str(status.utcTime),
+        homeTeamId,
+        homeName: str(home.name) ?? "",
+        awayTeamId,
+        awayName: str(away.name) ?? "",
+        finished: status.finished === true,
+        homeScore: score?.home ?? null,
+        awayScore: score?.away ?? null,
+      });
+    }
+  }
+
   return {
     leagueId: num(payload?.leagueId) ?? leagueId,
     leagueName: str(payload?.leagueName) ?? "",
     selectedSeason: str(payload?.selectedSeason),
     isCurrentSeason: payload?.isCurrentSeason === true,
     rows,
+    matches,
     missing,
   };
 }

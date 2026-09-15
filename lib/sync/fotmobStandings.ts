@@ -1,8 +1,10 @@
 import {
+  FOTMOB_ARSENAL_TEAM_ID,
   FOTMOB_PREMIER_LEAGUE_ID,
   FOTMOB_PROVIDER,
-  fetchFotmobLeagueTable,
+  fetchFotmobLeagueSnapshot,
 } from "@/lib/providers/fotmob";
+import { buildPositionProgression, type PositionPoint } from "@/lib/data/league-position";
 import { FOOTBALL_DATA_PROVIDER } from "@/lib/queries/football";
 import { opponentKey } from "@/lib/sync/opponent-key";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +25,10 @@ import { prisma } from "@/lib/prisma";
  *      只 upsert StandingEntry —— 不会产生「同队两行」，也保住了
  *      页面「阿森纳高亮」（其判据是 team.providerTeamId === "57"）。
  *   3. 名字实在对不上（新升班马等）才建 fotmob Team 兜底，并在结果里列出，保证不丢数据。
+ *
+ * 顺带：同一张联赛页里还有全部 380 场赛程（含已完赛比分），据此逐轮推算阿森纳的
+ * **名次走势**（名次取决于其他球队，必须用全量结果），随本次 SyncRun 的 metadata 一起留档，
+ * 供页面「英超排名走势图」读取。
  */
 
 export type FotmobStandingsSyncResult = {
@@ -40,6 +46,8 @@ export type FotmobStandingsSyncResult = {
   unmatched: string[];
   /** FotMob 页面缺失字段 */
   missing: string[];
+  /** 阿森纳逐轮名次走势（该轮全部完赛后，阿森纳的名次） */
+  progression: PositionPoint[];
   lastSyncedAt: string;
 };
 
@@ -47,12 +55,15 @@ export async function syncStandingsFromFotmob(
   options: { competition?: string } = {},
 ): Promise<FotmobStandingsSyncResult> {
   const competitionCode = options.competition ?? "PL";
-  const table = await fetchFotmobLeagueTable(FOTMOB_PREMIER_LEAGUE_ID);
-  if (!table.rows.length) {
+  const snapshot = await fetchFotmobLeagueSnapshot(FOTMOB_PREMIER_LEAGUE_ID);
+  if (!snapshot.rows.length) {
     throw new Error(
-      `FotMob 联赛 ${FOTMOB_PREMIER_LEAGUE_ID} 未解析到积分榜行（missing: ${table.missing.join(",") || "无"}）`,
+      `FotMob 联赛 ${FOTMOB_PREMIER_LEAGUE_ID} 未解析到积分榜行（missing: ${snapshot.missing.join(",") || "无"}）`,
     );
   }
+
+  // 逐轮推算阿森纳名次走势：名次取决于其他球队结果，故必须用全量赛程（同一张联赛页里就有）
+  const progression = buildPositionProgression(snapshot.matches, FOTMOB_ARSENAL_TEAM_ID);
 
   const competition = await prisma.competition.findFirst({
     where: { provider: FOOTBALL_DATA_PROVIDER, code: competitionCode },
@@ -89,7 +100,7 @@ export async function syncStandingsFromFotmob(
     let createdTeams = 0;
     let upserted = 0;
 
-    for (const row of table.rows) {
+    for (const row of snapshot.rows) {
       const key = opponentKey(row.name);
       let team = teamByKey.get(key);
       // 队名对不上时，退一步用短名再试（如 "Brighton Hove" 之类）
@@ -145,8 +156,14 @@ export async function syncStandingsFromFotmob(
       data: {
         status: "SUCCEEDED",
         finishedAt: new Date(),
-        fetchedCount: table.rows.length,
+        fetchedCount: snapshot.rows.length,
         upsertedCount: upserted,
+        // 读取层（getLeaguePositionProgression）从这里取排名走势：属派生物、随本轮同步变化，故随 run 留档
+        metadata: {
+          competition: competitionCode,
+          providerSeasonId: season.providerSeasonId,
+          progression,
+        },
       },
     });
 
@@ -155,11 +172,12 @@ export async function syncStandingsFromFotmob(
       competition: competitionCode,
       seasonId: season.id,
       providerSeasonId: season.providerSeasonId,
-      fetched: table.rows.length,
+      fetched: snapshot.rows.length,
       upserted,
       createdTeams,
       unmatched,
-      missing: table.missing,
+      missing: snapshot.missing,
+      progression,
       lastSyncedAt: new Date().toISOString(),
     };
   } catch (error) {

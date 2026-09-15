@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-import type { ProgressionPoint } from "@/lib/data/points-progression";
+import type { PositionPoint } from "@/lib/data/league-position";
 
 // ECharts 动态导入（避免 SSR 问题）——与球员详情页雷达图同一套做法
 const ReactECharts = dynamic(() => import("echarts-for-react").then((mod) => mod.default), {
@@ -11,45 +11,35 @@ const ReactECharts = dynamic(() => import("echarts-for-react").then((mod) => mod
 });
 
 const ARSENAL_RED = "#EF0107";
-const GOAL_DIFF_GREEN = "#3DD68C";
 const AXIS_TEXT = "#A1AABF";
 
-const RESULT_LABEL: Record<ProgressionPoint["result"], string> = { W: "胜", D: "平", L: "负" };
-
 /**
- * 联赛积分走势：累计积分（主轴）+ 累计净胜球（副轴）。
- * 数据来自三源合并赛程（与「赛程」tab 同源），因此与积分榜口径一致。
+ * 联赛名次走势图（默认英超）：纵轴为名次（**反向**，第 1 名在顶部），横轴为轮次。
+ * 名次由「全部联赛场次的结果」逐轮推算（只看阿森纳自己的赛程算不出排名）。
  */
-export function LeagueProgressChart({
+export function LeaguePositionChart({
   points,
   competitionLabel,
-  seasonLabel: seasonText,
 }: {
-  points: ProgressionPoint[];
+  points: PositionPoint[];
   competitionLabel: string;
-  seasonLabel?: string | null;
 }) {
-  if (points.length < 2) {
+  if (!points.length) {
     return (
       <div className="league-progress">
-        <p className="league-progress__hint">
-          {seasonText ? `${seasonText} · ` : ""}本赛季{competitionLabel}已完赛 {points.length} 场，满 2 场后绘制走势。
-        </p>
+        <p className="league-progress__head">{competitionLabel}排名走势</p>
+        <p className="league-progress__hint">暂无排名走势数据，请先运行一次积分榜同步。</p>
       </div>
     );
   }
 
+  const positions = points.map((point) => point.position);
+  // 纵轴范围：1 → 比最差名次再放宽一点（最多到 20），既保证 1 在顶部又留出可读空间
+  const axisMax = Math.min(20, Math.max(3, Math.max(...positions) + 1));
+
   const option = {
     backgroundColor: "transparent",
-    grid: { left: 4, right: 4, top: 44, bottom: 4, containLabel: true },
-    legend: {
-      top: 6,
-      icon: "roundRect",
-      itemHeight: 8,
-      itemWidth: 14,
-      textStyle: { color: AXIS_TEXT, fontSize: 12 },
-      data: ["累计积分", "累计净胜球"],
-    },
+    grid: { left: 4, right: 20, top: 16, bottom: 4, containLabel: true },
     tooltip: {
       trigger: "axis",
       backgroundColor: "#21212A",
@@ -59,73 +49,62 @@ export function LeagueProgressChart({
         const list = (Array.isArray(params) ? params : [params]) as Array<{ dataIndex?: number }>;
         const point = points[list[0]?.dataIndex ?? 0];
         if (!point) return "";
-        const venue = point.homeAway === "HOME" ? "主" : "客";
-        const diff = point.cumulativeGoalDiff > 0 ? `+${point.cumulativeGoalDiff}` : `${point.cumulativeGoalDiff}`;
+        const diff = point.goalDifference > 0 ? `+${point.goalDifference}` : `${point.goalDifference}`;
         return [
-          `第 ${point.matchday} 轮 · ${venue} vs ${point.opponentName}`,
-          `${point.goalsFor}-${point.goalsAgainst}　${RESULT_LABEL[point.result]}`,
-          `累计积分 ${point.cumulativePoints}　累计净胜球 ${diff}`,
+          `第 ${point.round} 轮结束`,
+          `名次 第 ${point.position} 名　积分 ${point.points}`,
+          `战绩 ${point.won}胜${point.drawn}平${point.lost}负　净胜球 ${diff}`,
         ].join("<br/>");
       },
     },
     xAxis: {
       type: "category",
       boundaryGap: false,
-      data: points.map((point) => `第${point.matchday}轮`),
+      data: points.map((point) => `第${point.round}轮`),
       axisTick: { show: false },
       axisLine: { lineStyle: { color: "rgba(255,255,255,0.2)" } },
       axisLabel: { color: AXIS_TEXT, fontSize: 11 },
     },
-    yAxis: [
-      {
-        type: "value",
-        name: "积分",
-        nameTextStyle: { color: AXIS_TEXT, fontSize: 11 },
-        axisLabel: { color: AXIS_TEXT, fontSize: 11 },
-        splitLine: { lineStyle: { color: "rgba(255,255,255,0.07)" } },
-      },
-      {
-        type: "value",
-        name: "净胜球",
-        nameTextStyle: { color: AXIS_TEXT, fontSize: 11 },
-        axisLabel: { color: AXIS_TEXT, fontSize: 11 },
-        splitLine: { show: false },
-      },
-    ],
+    yAxis: {
+      type: "value",
+      // 反向：名次越小越靠上（第 1 名在顶部）
+      inverse: true,
+      min: 1,
+      max: axisMax,
+      interval: 1,
+      name: "名次",
+      nameTextStyle: { color: AXIS_TEXT, fontSize: 11 },
+      axisLabel: { color: AXIS_TEXT, fontSize: 11, formatter: "{value}" },
+      splitLine: { lineStyle: { color: "rgba(255,255,255,0.07)" } },
+    },
     series: [
       {
-        name: "累计积分",
+        name: "名次",
         type: "line",
-        smooth: true,
+        smooth: false,
         symbol: "circle",
-        symbolSize: 7,
-        data: points.map((point) => point.cumulativePoints),
+        symbolSize: 9,
+        data: points.map((point) => point.position),
         lineStyle: { color: ARSENAL_RED, width: 2 },
-        itemStyle: { color: ARSENAL_RED },
-        areaStyle: { color: "rgba(228, 0, 43, 0.16)" },
-      },
-      {
-        name: "累计净胜球",
-        type: "line",
-        yAxisIndex: 1,
-        smooth: true,
-        symbol: "circle",
-        symbolSize: 5,
-        data: points.map((point) => point.cumulativeGoalDiff),
-        lineStyle: { color: GOAL_DIFF_GREEN, width: 1.6, type: "dashed" },
-        itemStyle: { color: GOAL_DIFF_GREEN },
+        itemStyle: { color: ARSENAL_RED, borderColor: "#0E0E12", borderWidth: 1 },
+        label: {
+          show: true,
+          position: "bottom",
+          distance: 6,
+          color: AXIS_TEXT,
+          fontSize: 11,
+          formatter: (params: { value?: number }) => (params.value ? `第${params.value}` : ""),
+        },
       },
     ],
   };
 
   return (
     <div className="league-progress">
-      <p className="league-progress__head">
-        {seasonText ? `${seasonText} ` : ""}{competitionLabel}累计积分走势
-      </p>
-      <ReactECharts option={option} style={{ width: "100%", height: 300 }} opts={{ renderer: "canvas" }} />
+      <p className="league-progress__head">{competitionLabel}排名走势</p>
+      <ReactECharts option={option} style={{ width: "100%", height: 280 }} opts={{ renderer: "canvas" }} />
       <p className="league-progress__note">
-        已完赛 {points.length} 场 · 数据源：三源合并赛程（与积分榜同口径）
+        已完赛 {points.length} 轮 · 名次由全部联赛结果逐轮推算（与积分榜同口径）
       </p>
     </div>
   );

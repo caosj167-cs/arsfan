@@ -1,6 +1,7 @@
 import { TeamDataPage } from "@/components/team-data-page";
 import { getFixtureEntries } from "@/lib/queries/fixtureEntries";
 import { getStandings } from "@/lib/queries/football";
+import { getLeaguePositionProgression } from "@/lib/queries/leagueProgress";
 import { getEntryIdsWithReport } from "@/lib/queries/matchReports";
 import { getLeaderboardsWithRealStats } from "@/lib/queries/players";
 import { EXTRA_CREST_BY_OPPONENT_NAME } from "@/lib/data/crests";
@@ -47,6 +48,8 @@ export default async function TeamDataRoute() {
 
   const { scorers, assisters, season: leaderboardSeason } = await getLeaderboardsWithRealStats();
   const entryReportIds = await getEntryIdsWithReport(entriesResult.season);
+  // 英超名次走势（由积分榜同步时用全量联赛结果算出，随 SyncRun 留档）
+  const positionProgression = await getLeaguePositionProgression();
 
   return (
     <TeamDataPage
@@ -57,6 +60,7 @@ export default async function TeamDataRoute() {
       scorers={scorers}
       assisters={assisters}
       leaderboardSeason={leaderboardSeason}
+      positionProgression={positionProgression}
       crestMap={crestMap}
       nowIso={new Date().toISOString()}
     />
