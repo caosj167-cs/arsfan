@@ -55,8 +55,9 @@ GET|POST /api/cron/sync?mode=both       → 两者都跑
 > 与 FotMob 官网口径（第 4 轮、阿森纳 12 分）不一致，故改为**与进球/助攻榜同源抓取 FotMob**。
 > `syncStandingsFromFotmob()` 复用 getStandings() 读取的 competition/season，并按归一化队名把
 > FotMob 行映射到既有 football-data 球队行，只 upsert StandingEntry（不新增球队、保住"阿森纳高亮"）。
-> ⚠️ 手动 `POST /api/sync/football-data` 是 football-data 全量同步，**仍会**用旧源覆盖积分榜；
-> 正常定时链路不会走它。
+> ✅ `syncFootballData()`（含手动 `POST /api/sync/football-data`）已**移除积分榜写入**（该接口返回 `standings` 恒为 0，
+> 其 standings 请求只用于取赛季元数据），原来的 `syncStandingsFromProvider()` 已删除。
+> 因此 **`standingEntry` 的唯一写入源是 FotMob 抓取**，不会再被旧源覆盖。
 
 鉴权（任选其一，无密钥返回 401 统一信封）：
 

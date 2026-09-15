@@ -5,6 +5,15 @@ import { apiError, apiJson, ApiErrorCode } from "@/lib/api/respond";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * football-data.org 全量同步（手动）。
+ *
+ * ⚠️ 本同步**不再写积分榜**（返回里 `standings` 恒为 0）：积分榜唯一写入源是
+ * `syncStandingsFromFotmob()`（抓 FotMob 联赛表，见 POST /api/sync/standings）。
+ * 原因是 football-data 的 standings 长期滞后（2026-27 只到第 2 轮），会覆盖掉最新榜。
+ * `action: "reconcile"` 仍可用于比分回填。
+ */
+
 function isAuthorized(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
