@@ -9,6 +9,8 @@ const RULES: Array<{ code: string; name: string; patterns: RegExp[] }> = [
   { code: "CL", name: "UEFA Champions League", patterns: [/champions league/i, /\bucl\b/i] },
   { code: "LC", name: "League Cup", patterns: [/efl cup/i, /league cup/i, /carabao/i, /\bleague cup\b/i] },
   { code: "FAC", name: "FA Cup", patterns: [/\bfa cup\b/i] },
+  // 维基把这场写作 "FA Community Shield"；页面的赛事标签用的是 "Community Shield"（→ 社区盾）
+  { code: "CS", name: "Community Shield", patterns: [/community shield/i] },
   { code: "FR", name: "Friendly", patterns: [/friendly/i, /friendlies/i, /emirates cup/i, /pre-?season/i] },
 ];
 

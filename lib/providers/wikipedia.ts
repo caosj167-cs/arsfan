@@ -79,12 +79,63 @@ function parseBoxParams(segment: string): Record<string, string> {
   return params;
 }
 
-function level2Headings(wikitext: string) {
-  const out: Array<{ pos: number; title: string }> = [];
-  const re = /^={2}([^=\n][^\n]*?)\s*={2}\s*$/gm;
+export type WikiHeading = { pos: number; level: number; title: string };
+
+/** 解析全部标题（`== X ==` 到 `====== X ======`），带级别与位置。 */
+export function parseHeadings(wikitext: string): WikiHeading[] {
+  const out: WikiHeading[] = [];
+  const re = /^(={2,6})\s*([^=\n][^\n]*?)\s*\1\s*$/gm;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(wikitext)) !== null) out.push({ pos: m.index, title: m[1].trim() });
+  while ((m = re.exec(wikitext)) !== null) out.push({ pos: m.index, level: m[1].length, title: m[2].trim() });
   return out;
+}
+
+/**
+ * 容器型小节标题：它们只起分组作用，不是赛事名，不能当赛事用。
+ * （维基赛季页的常见结构是 `== Competitions ==` → `=== Premier League ===`，前者是容器。）
+ */
+const CONTAINER_SECTION_TITLES = new Set([
+  "competitions", "overview", "statistics", "review", "first team", "kits",
+  "contracts and transfers", "awards and nominations", "references", "overall record",
+  "league table", "results summary", "results by round", "matches", "appearances",
+  "goals", "assists", "disciplinary record", "clean sheets", "hat-tricks",
+]);
+
+/**
+ * 比赛所在小节的**包含路径**（由外到内）。
+ * 做法：从该位置向前回溯，只接受级别严格递减的标题——遇到同级或更高级的标题
+ * 即说明上一节已结束。例：`Matches`(L4) → `Premier League`(L3) → `Competitions`(L2)。
+ */
+export function sectionPath(headings: WikiHeading[], pos: number): WikiHeading[] {
+  const path: WikiHeading[] = [];
+  for (let i = headings.length - 1; i >= 0; i -= 1) {
+    const heading = headings[i];
+    if (heading.pos >= pos) continue;
+    if (!path.length || heading.level < path[path.length - 1].level) path.push(heading);
+    if (path[path.length - 1]?.level === 2) break; // 已到 L2，无需再往外
+  }
+  return path.reverse();
+}
+
+/**
+ * 取比赛所属赛事的标题。
+ *
+ * 在包含路径里**由内向外**找第一个「能识别为已知赛事」的标题：
+ *   `Matches`(不认识) → `Premier League`(认识 ✓)
+ * 都不认识时，退到最内层的非容器标题，最后退到最外层标题。
+ *
+ * 这样修掉了「只认 L2 标题」的旧 bug：旧逻辑会把 `== Competitions ==` 下的比赛
+ * 一律标成 "Competitions"（含 2026 社区盾那场；该行仅来自维基，没有其它源纠正它）。
+ */
+export function competitionTitleFor(headings: WikiHeading[], pos: number): string {
+  const path = sectionPath(headings, pos);
+  for (let i = path.length - 1; i >= 0; i -= 1) {
+    if (normalizeCompetition(path[i].title).code !== null) return path[i].title;
+  }
+  for (let i = path.length - 1; i >= 0; i -= 1) {
+    if (!CONTAINER_SECTION_TITLES.has(path[i].title.toLowerCase())) return path[i].title;
+  }
+  return path[0]?.title ?? "";
 }
 
 async function fetchWikitext(pageTitle: string): Promise<string> {
@@ -124,15 +175,7 @@ export async function fetchWikipediaFixtures(options: { season: number; pageTitl
   const wikitext = await fetchWikitext(pageTitle);
   if (!wikitext) return [];
 
-  const headings = level2Headings(wikitext);
-  const competitionFor = (pos: number) => {
-    let title = "";
-    for (const h of headings) {
-      if (h.pos < pos) title = h.title;
-      else break;
-    }
-    return title;
-  };
+  const headings = parseHeadings(wikitext);
 
   const boxRe = /\{\{\s*football box collapsible/gi;
   const positions: number[] = [];
@@ -156,7 +199,7 @@ export async function fetchWikipediaFixtures(options: { season: number; pageTitl
     const kickoffAt = parseDate(params.date ?? "", params.time);
     if (!kickoffAt) continue;
 
-    const competition = normalizeCompetition(competitionFor(start));
+    const competition = normalizeCompetition(competitionTitleFor(headings, start));
     const opponentName = arsenalIsTeam1 ? team2 : team1;
     const score = parseScore(params.score);
     const recordId = `${kickoffAt.toISOString().slice(0, 10)}|${opponentName.toLowerCase()}|${arsenalIsTeam1 ? "HOME" : "AWAY"}`;
