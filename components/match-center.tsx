@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ClubBadge } from "@/components/club-badge";
+import { formatBeijing } from "@/lib/datetime";
 import { clubName } from "@/lib/data/clubs";
 import { normalizeCompetition } from "@/lib/data/competitions";
 import type { MatchCenterView } from "@/lib/queries/matchReports";
@@ -18,7 +19,7 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 function fmtDateTime(iso: string) {
-  return new Intl.DateTimeFormat("zh-CN", { dateStyle: "full", timeStyle: "short" }).format(new Date(iso));
+  return formatBeijing(iso, { dateStyle: "full", timeStyle: "short" });
 }
 
 function playerFlags(p: MatchPlayerRow) {

@@ -4,6 +4,7 @@ import { SiteNotifications } from "@/components/site-notifications";
 import { SiteSearch } from "@/components/site-search";
 import { ClubBadge } from "@/components/club-badge";
 import { Countdown } from "@/components/countdown";
+import { formatBeijing } from "@/lib/datetime";
 import { clubName } from "@/lib/data/clubs";
 import type { FixtureView, StandingView } from "@/lib/queries/football";
 import type { HomeNewsFeed, HomeNewsItem } from "@/lib/queries/home";
@@ -44,13 +45,13 @@ function teamName(team: { name: string; shortName: string | null }) {
 }
 
 function fmtDate(v: string) {
-  return new Intl.DateTimeFormat("zh-CN", { day: "numeric", month: "numeric" }).format(new Date(v));
+  return formatBeijing(v, { day: "numeric", month: "numeric" });
 }
 function fmtLong(v: string) {
-  return new Intl.DateTimeFormat("zh-CN", { weekday: "long", day: "numeric", month: "long" }).format(new Date(v));
+  return formatBeijing(v, { weekday: "long", day: "numeric", month: "long" });
 }
 function fmtTime(v: string) {
-  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(v));
+  return formatBeijing(v, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function isArsenal(f: FixtureView) {

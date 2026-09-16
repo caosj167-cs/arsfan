@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { SiteShell } from "@/components/site-shell";
+import { formatBeijing } from "@/lib/datetime";
 import type { GuardianNewsResult, NewsArticle } from "@/lib/providers/guardian";
 import type { getOfficialNews } from "@/lib/queries/official";
 import { canOptimizeImage } from "@/lib/images";
@@ -14,13 +15,11 @@ type DisplayNewsArticle = Pick<NewsArticle, "id" | "title" | "summary" | "publis
 };
 
 function date(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", { day: "numeric", month: "numeric", year: "numeric" }).format(new Date(value));
+  return formatBeijing(value, { day: "numeric", month: "numeric", year: "numeric" });
 }
 
 function stamp(value: string | null | undefined) {
-  return value
-    ? new Intl.DateTimeFormat("zh-CN", { dateStyle: "short", timeStyle: "short" }).format(new Date(value))
-    : "页面查询时";
+  return value ? formatBeijing(value, { dateStyle: "short", timeStyle: "short" }) : "页面查询时";
 }
 
 function NewsImage({ article, className = "" }: { article: DisplayNewsArticle; className?: string }) {

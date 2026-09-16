@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import { formatBeijing } from "@/lib/datetime";
+
 type Notif = {
   id: string;
   kind: "upcoming" | "result";
@@ -15,13 +17,7 @@ type Notif = {
 type NotifPayload = { upcoming: Notif[]; recent: Notif[]; unread: number };
 
 function fmt(ts: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(ts));
+  return formatBeijing(ts, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 export function SiteNotifications() {

@@ -2,15 +2,16 @@ import Link from "next/link";
 
 import { ClubBadge } from "@/components/club-badge";
 import { SiteShell } from "@/components/site-shell";
+import { formatBeijing } from "@/lib/datetime";
 import { clubName } from "@/lib/data/clubs";
 import type { MatchDetailView } from "@/lib/queries/match";
 
 function date(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(value));
+  return formatBeijing(value, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
 function time(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
+  return formatBeijing(value, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function display(value: unknown) {

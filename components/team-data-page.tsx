@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ClubBadge } from "@/components/club-badge";
 import { LeaguePositionChart } from "@/components/league-progress-chart";
 import { SiteShell } from "@/components/site-shell";
+import { formatBeijing } from "@/lib/datetime";
 import { clubName } from "@/lib/data/clubs";
 import type { PositionPoint } from "@/lib/data/league-position";
 import type { StandingView } from "@/lib/queries/football";
@@ -95,16 +96,16 @@ function lookupCrest(map: Record<string, string>, name: string): string | null {
 }
 
 function fmtDate(v: string) {
-  return new Intl.DateTimeFormat("zh-CN", { day: "numeric", month: "numeric", weekday: "short" }).format(new Date(v));
+  return formatBeijing(v, { day: "numeric", month: "numeric", weekday: "short" });
 }
 function fmtMonth(v: string) {
-  return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(new Date(v));
+  return formatBeijing(v, { year: "numeric", month: "long" });
 }
 function fmtTime(v: string) {
-  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(v));
+  return formatBeijing(v, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 function fmtStamp(v: string | null | undefined) {
-  return v ? new Intl.DateTimeFormat("zh-CN", { dateStyle: "short", timeStyle: "short" }).format(new Date(v)) : "页面查询时";
+  return v ? formatBeijing(v, { dateStyle: "short", timeStyle: "short" }) : "页面查询时";
 }
 
 /** 分组渲染：月份标题 + 一条 1px 延伸线（设计稿 46px 高） */
