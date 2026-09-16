@@ -2267,9 +2267,17 @@ a.fx-row--link:hover { background: var(--line-soft); }
   .entry-grid { grid-template-columns: 1fr; }
   .countdown { flex-wrap: wrap; }
   /* 头部导航 */
+  /* ⚠️ 换行与行距都必须加在 __inner 上：外层 .site-header / .dashboard-header 是块级容器
+     （基础规则里没有 display:flex），在原处写 flex-wrap / gap 都是空操作 → 换行从未生效。
+     而 .site-nav 的 width:100% + overflow-x:auto 会让它自身 min-width:auto 退化为 0
+     （flex 子元素 overflow 非 visible 时的规范行为），于是被同行元素挤成 0 宽、
+     内容被裁 → 手机上主导航完全不可见、不可点。__inner 固定了 71px 高，换行后必须解除；
+     行距沿用基础规则的 32px 太松（换行后 3 行撑到 203px），改用原媒体查询想给的 12px。 */
+  .site-header__inner, .dashboard-header__inner { flex-wrap: wrap; height: auto; gap: 12px; }
   .site-header, .dashboard-header { flex-wrap: wrap; padding: 14px 18px; gap: 12px; }
   .dashboard-brand { min-width: 0; }
-  .site-nav, .dashboard-nav { gap: 4px; margin-left: 0; order: 3; overflow-x: auto; width: 100%; }
+  /* flex: 1 1 100% 让导航独占一整行（覆盖 width:100%，并避免被挤扁） */
+  .site-nav, .dashboard-nav { flex: 1 1 100%; gap: 4px; margin-left: 0; order: 3; overflow-x: auto; width: auto; min-width: 0; }
   .header-season, .dashboard-header__season { margin-left: auto; }
   .header-ops__lang, .header-ops__icon { display: none; }
   /* 数据中心 */
